@@ -390,7 +390,7 @@ int main() {
 
     #[test]
     fn some_operators() {
-        let src= r#"
+        let src = r#"
 int hello(const char* uwu) <%
     uwu[5] <<= 23;
     *uwu * (p++);
