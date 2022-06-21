@@ -7,8 +7,9 @@ use std::ops::Not;
 
 use peekmore::PeekMore;
 
-type Span = std::ops::Range<usize>;
+use crate::Span;
 
+#[derive(Debug)]
 pub enum PToken {
     HeaderName(Vec<u8>),
     Identifier(Vec<u8>),
@@ -20,20 +21,7 @@ pub enum PToken {
     Error,
 }
 
-pub enum Token {
-    Keyword(Keyword),
-    Identifier(),
-    Constant(),
-    StringLiteral(),
-    Punctuator(Punctuator),
-}
-
-pub enum Keyword {}
-
-pub enum Constant {
-    Integer(i64),
-}
-
+#[derive(Debug)]
 pub enum Punctuator {
     /// [   <:
     BracketOpen,
@@ -362,4 +350,24 @@ pub fn preprocess_tokens(
         src: src.peekmore(),
     };
     lexer
+}
+
+#[cfg(test)]
+mod tests {
+    fn lex_test(str: &str) {
+        let bytes = str.bytes().enumerate();
+        let tokens = super::preprocess_tokens(bytes);
+        let tokens = tokens.collect::<Vec<_>>();
+        insta::assert_debug_snapshot!(tokens);
+    }
+
+    #[test]
+    fn hello_world() {
+        let src = r#"\
+int main() {
+    puts("Hello, World!");
+}
+"#;
+    lex_test(src);
+    }
 }

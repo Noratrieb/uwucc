@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 peekmore = { version = "1.0.0", features = ["smallvec"] }
+
+[dev-dependencies]
+insta = "1.15.0"

@@ -1,3 +1,6 @@
 #![allow(dead_code)]
 
-mod lexer;
+mod pre;
+mod token;
+
+pub type Span = std::ops::Range<usize>;
