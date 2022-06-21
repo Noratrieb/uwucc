@@ -23,3 +23,16 @@ pub enum TypeSpecifier {
     // enum-specifier
     // typedef-name
 }
+
+#[derive(Debug, Default, DebugPls)]
+pub struct DeclAttr {
+    pub is_extern: bool,
+    pub is_static: bool,
+    pub is_thread_local: bool,
+}
+
+#[derive(Debug, DebugPls)]
+pub struct DeclSpec {
+    pub ty: TypeSpecifier,
+    pub attrs: DeclAttr,
+}

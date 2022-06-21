@@ -3,7 +3,7 @@
 //!
 //! Code might be bad. Possibly.
 
-use std::{ops::Not, fmt::Display};
+use std::{fmt::Display, ops::Not};
 
 use peekmore::PeekMore;
 
@@ -398,11 +398,11 @@ where
             }
         };
 
-        Some((token, start_span..end_span + 1))
+        Some((token, Span::start_end(start_span, end_span + 1)))
     }
 }
 
-pub fn preprocess_tokens(src: &str) -> impl Iterator<Item = (PToken<'_>, std::ops::Range<usize>)> {
+pub fn preprocess_tokens(src: &str) -> impl Iterator<Item = (PToken<'_>, Span)> {
     let lexer = PLexer {
         src_str: src,
         src: src.bytes().enumerate().peekmore(),
