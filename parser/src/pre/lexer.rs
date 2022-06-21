@@ -136,6 +136,7 @@ where
         let mut ident = vec![c];
 
         while let Some((span, c)) = self.src.peek() {
+            println!("uwu {c}");
             let (span, c) = (*span, *c);
             if c.is_c_identifier() {
                 self.src.next();
@@ -257,14 +258,18 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         use PToken::Punctuator as TokP;
 
-        let (start_span, char1) = self.src.next()?;
-        let char2 = self.src.peek().map(|(_, c)| *c);
-        let char3 = self.src.peek_nth(2).map(|(_, c)| *c);
+        let mut start_span;
 
         let (token, end_span) = loop {
+            let (span, char1) = self.src.next()?;
+            start_span = span;
+            let char2 = self.src.peek().map(|(_, c)| *c);
+            let char3 = self.src.peek_nth(2).map(|(_, c)| *c);
+
             match (char1, char2, char3) {
                 // IDENTIFIER
                 (c, _, _) if c.is_c_identifier_nondigit() => {
+                    println!("AA");
                     break self.identifier(c, start_span);
                 }
                 // NUMBER
@@ -354,20 +359,28 @@ pub fn preprocess_tokens(
 
 #[cfg(test)]
 mod tests {
-    fn lex_test(str: &str) {
-        let bytes = str.bytes().enumerate();
-        let tokens = super::preprocess_tokens(bytes);
-        let tokens = tokens.collect::<Vec<_>>();
-        insta::assert_debug_snapshot!(tokens);
+    macro_rules! lex_test {
+        ($str:expr) => {
+            let bytes = $str.bytes().enumerate();
+            let tokens = super::preprocess_tokens(bytes);
+            let tokens = tokens.collect::<Vec<_>>();
+            insta::assert_debug_snapshot!(tokens);
+        };
+    }
+
+    #[test]
+    fn identifiers() {
+        let src = r#"AAAA BBBB CCCC"#;
+        lex_test!(src);
     }
 
     #[test]
     fn hello_world() {
-        let src = r#"\
+        let src = r#"
 int main() {
     puts("Hello, World!");
 }
 "#;
-    lex_test(src);
+        lex_test!(src);
     }
 }

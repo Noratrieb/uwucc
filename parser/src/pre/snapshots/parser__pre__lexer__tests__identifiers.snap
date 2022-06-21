@@ -1,0 +1,39 @@
+---
+source: parser/src/pre/lexer.rs
+expression: tokens
+---
+[
+    (
+        Identifier(
+            [
+                65,
+                65,
+                65,
+                65,
+            ],
+        ),
+        0..4,
+    ),
+    (
+        Identifier(
+            [
+                66,
+                66,
+                66,
+                66,
+            ],
+        ),
+        5..9,
+    ),
+    (
+        Identifier(
+            [
+                67,
+                67,
+                67,
+                67,
+            ],
+        ),
+        10..14,
+    ),
+]
