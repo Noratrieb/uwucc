@@ -116,7 +116,7 @@ pub enum Punctuator {
     /// |=
     PipeEqual,
     /// ,
-    Comman,
+    Comma,
     /// #   %:
     Hash,
     /// ##   %:%:
@@ -127,7 +127,7 @@ struct PLexer<I>
 where
     I: Iterator<Item = u8>,
 {
-    src: std::iter::Peekable<I>,
+    src: peekmore::PeekMoreIterator<I>,
 }
 
 impl<I> PLexer<I>
@@ -181,6 +181,14 @@ where
         }
         PToken::StringLiteral(string)
     }
+
+    fn s_p(&mut self) -> Option<&u8> {
+        self.src.peek()
+    }
+
+    fn s_p_n(&mut self, n: usize) -> Option<&u8> {
+        self.src.peek_nth(n)
+    }
 }
 
 impl<'src, I> Iterator for PLexer<I>
@@ -198,6 +206,8 @@ where
     ///   punctuator
     ///   each non-white-space character that cannot be one of the above
     fn next(&mut self) -> Option<Self::Item> {
+        use PToken::Punctuator as TokP;
+
         loop {
             match self.src.next()? {
                 c @ (b'a'..=b'z' | b'A'..=b'Z' | b'_') => {
@@ -205,20 +215,145 @@ where
                 }
                 c @ b'0'..=b'9' => return Some(self.number(c)),
                 b'"' => return Some(self.string_literal()),
-                b'[' => return Some(PToken::Punctuator(Punctuator::BraceOpen)),
                 c if c.is_ascii_whitespace() => {}
-                b'/' if self.src.peek() == Some(&b'*') => {
-                    loop {
-                        let first = self.src.next()?;
-                        let second = self.src.peek();
-                        if first == b'*' && second == Some(&b'/') {
-                            self.src.next();
-                        }
+                b'/' if self.s_p() == Some(&b'*') => loop {
+                    let first = self.src.next()?;
+                    let second = self.s_p();
+                    if first == b'*' && second == Some(&b'/') {
+                        self.src.next();
                     }
+                },
+                b'/' if self.s_p() == Some(&b'/') => while self.src.next() != Some(b'\n') {},
+                b'.' if self.s_p() == Some(&b'.') && self.s_p_n(2) == Some(&b'.') => {
+                    self.src.next();
+                    self.src.next();
+                    return Some(TokP(Punctuator::LeftLeftChevronEqual));
                 }
-                b'/' if self.src.peek() == Some(&b'/') => {
-                    while self.src.next() != Some(b'\n') {}
+                b'<' if self.s_p() == Some(&b'<') && self.s_p_n(2) == Some(&b'=') => {
+                    self.src.next();
+                    self.src.next();
+                    return Some(TokP(Punctuator::LeftLeftChevronEqual));
                 }
+                b'>' if self.s_p() == Some(&b'>') && self.s_p_n(2) == Some(&b'=') => {
+                    self.src.next();
+                    self.src.next();
+                    return Some(TokP(Punctuator::RightRightChevronEqual));
+                }
+                b'<' if self.s_p() == Some(&b':') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::BracketOpen));
+                }
+                b':' if self.s_p() == Some(&b'>') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::BracketClose));
+                }
+                b'<' if self.s_p() == Some(&b'%') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::BraceOpen));
+                }
+                b'%' if self.s_p() == Some(&b'>') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::BraceClose));
+                }
+                b'-' if self.s_p() == Some(&b'>') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::Arrow));
+                }
+                b'+' if self.s_p() == Some(&b'+') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::PlusPlus));
+                }
+                b'-' if self.s_p() == Some(&b'-') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::Minus));
+                }
+                b'<' if self.s_p() == Some(&b'<') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::LeftLeftChevron));
+                }
+                b'>' if self.s_p() == Some(&b'>') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::RightRightChevron));
+                }
+                b'<' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::LeftChevronEqual));
+                }
+                b'>' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::RightChevronEqual));
+                }
+                b'=' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::EqualEqual));
+                }
+                b'!' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::BangEqual));
+                }
+                b'&' if self.s_p() == Some(&b'&') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::AmpersandAmpersand));
+                }
+                b'|' if self.s_p() == Some(&b'|') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::PipePipe));
+                }
+                b'*' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::AsteriskEqual));
+                }
+                b'/' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::SlashEqual));
+                }
+                b'%' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::PercentEqual));
+                }
+                b'+' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::PlusEqual));
+                }
+                b'-' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::MinusEqual));
+                }
+                b'&' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::AmspersandEqual));
+                }
+                b'^' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::CaretEqual));
+                }
+                b'|' if self.s_p() == Some(&b'=') => {
+                    self.src.next();
+                    return Some(TokP(Punctuator::PipeEqual));
+                }
+                b'[' => return Some(TokP(Punctuator::BracketOpen)),
+                b']' => return Some(TokP(Punctuator::BracketClose)),
+                b'(' => return Some(TokP(Punctuator::ParenOpen)),
+                b'{' => return Some(TokP(Punctuator::BraceOpen)),
+                b')' => return Some(TokP(Punctuator::ParenClose)),
+                b'}' => return Some(TokP(Punctuator::BraceClose)),
+                b'.' => return Some(TokP(Punctuator::Dot)),
+                b'&' => return Some(TokP(Punctuator::Ampersand)),
+                b'*' => return Some(TokP(Punctuator::Asterisk)),
+                b'-' => return Some(TokP(Punctuator::Minus)),
+                b'~' => return Some(TokP(Punctuator::Tilde)),
+                b'!' => return Some(TokP(Punctuator::Bang)),
+                b'%' => return Some(TokP(Punctuator::Percent)),
+                b'<' => return Some(TokP(Punctuator::LeftChevron)),
+                b'>' => return Some(TokP(Punctuator::RightChevron)),
+                b'^' => return Some(TokP(Punctuator::Caret)),
+                b'|' => return Some(TokP(Punctuator::Pipe)),
+                b'?' => return Some(TokP(Punctuator::QuestionMark)),
+                b':' => return Some(TokP(Punctuator::Colon)),
+                b';' => return Some(TokP(Punctuator::Semicolon)),
+                b'=' => return Some(TokP(Punctuator::Equal)),
+                b',' => return Some(TokP(Punctuator::Comma)),
+                b'#' => return Some(TokP(Punctuator::Hash)),
                 c => return Some(PToken::OtherNonWs(c)),
             }
         }
