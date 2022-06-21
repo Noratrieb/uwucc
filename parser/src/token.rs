@@ -1,7 +1,4 @@
-use crate::{
-    pre::{PToken, Punctuator},
-    Span,
-};
+use crate::pre::Punctuator;
 
 pub enum Token {
     Keyword(Keyword),
@@ -13,9 +10,3 @@ pub enum Token {
 }
 
 pub struct Keyword;
-
-fn from_pre_toks(
-    pre_toks: impl Iterator<Item = (PToken, Span)>,
-) -> impl IntoIterator<Item = (Token, Span)> {
-    pre_toks.map(|token| todo!())
-}

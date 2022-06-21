@@ -5,34 +5,19 @@ expression: tokens
 [
     (
         Identifier(
-            [
-                65,
-                65,
-                65,
-                65,
-            ],
+            "AAAA",
         ),
         0..4,
     ),
     (
         Identifier(
-            [
-                66,
-                66,
-                66,
-                66,
-            ],
+            "BBBB",
         ),
         5..9,
     ),
     (
         Identifier(
-            [
-                67,
-                67,
-                67,
-                67,
-            ],
+            "CCCC",
         ),
         10..14,
     ),

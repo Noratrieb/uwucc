@@ -10,12 +10,12 @@ use peekmore::PeekMore;
 use crate::Span;
 
 #[derive(Debug)]
-pub enum PToken {
-    HeaderName(Vec<u8>),
-    Identifier(Vec<u8>),
-    PpNumber(Vec<u8>),
+pub enum PToken<'src> {
+    HeaderName(&'src str),
+    Identifier(&'src str),
+    PpNumber(&'src str),
     CharConstant,
-    StringLiteral(Vec<u8>),
+    StringLiteral(&'src str),
     Punctuator(Punctuator),
     OtherNonWs(u8),
     Error,
@@ -119,58 +119,62 @@ pub enum Punctuator {
     HashHash,
 }
 
-struct PLexer<I>
+struct PLexer<'src, I>
 where
     I: Iterator<Item = (usize, u8)>,
 {
+    src_str: &'src str,
     src: peekmore::PeekMoreIterator<I>,
 }
 
-impl<I> PLexer<I>
+impl<'src, I> PLexer<'src, I>
 where
     I: Iterator<Item = (usize, u8)>,
 {
     /// 6.4.2 Identifiers
     /// TODO: 6.4.3 Universal character names
-    fn identifier(&mut self, c: u8, mut last_span: usize) -> (PToken, usize) {
-        let mut ident = vec![c];
+    fn identifier(&mut self, mut last_span: usize) -> (PToken<'src>, usize) {
+        let first_span = last_span;
 
         while let Some((span, c)) = self.src.peek() {
-            println!("uwu {c}");
             let (span, c) = (*span, *c);
             if c.is_c_identifier() {
                 self.src.next();
-                ident.push(c);
                 last_span = span;
             } else {
                 break;
             }
         }
 
-        (PToken::Identifier(ident), last_span)
+        (
+            PToken::Identifier(&self.src_str[first_span..=last_span]),
+            last_span,
+        )
     }
 
     /// 6.4.8 Preprocessing numbers
-    fn number(&mut self, c: u8, mut last_span: usize) -> (PToken, usize) {
-        let mut number = vec![c];
+    fn number(&mut self, mut last_span: usize) -> (PToken<'src>, usize) {
+        let first_span = last_span;
 
         while let Some((span, c)) = self.src.peek() {
             let (span, c) = (*span, *c);
             if c.is_ascii_digit() {
                 self.src.next();
-                number.push(c);
                 last_span = span;
             } else {
                 break;
             }
         }
 
-        (PToken::PpNumber(number), last_span)
+        (
+            PToken::PpNumber(&self.src_str[first_span..=last_span]),
+            last_span,
+        )
     }
 
     /// 6.4.5 String literals
-    fn string_literal(&mut self, mut last_span: usize) -> (PToken, usize) {
-        let mut string = Vec::new();
+    fn string_literal(&mut self, mut last_span: usize) -> (PToken<'src>, usize) {
+        let first_span = last_span;
 
         loop {
             let next = self.src.next();
@@ -180,13 +184,15 @@ where
                         break;
                     }
                     last_span = span;
-                    string.push(c);
                 }
                 None => return (PToken::Error, last_span),
             }
         }
 
-        (PToken::StringLiteral(string), last_span)
+        (
+            PToken::StringLiteral(&self.src_str[first_span + 1..=last_span]),
+            last_span,
+        )
     }
 
     /// source peek
@@ -241,17 +247,17 @@ impl CLexExt for u8 {
     }
 }
 
-impl<'src, I> Iterator for PLexer<I>
+impl<'src, I> Iterator for PLexer<'src, I>
 where
     I: Iterator<Item = (usize, u8)>,
 {
-    type Item = (PToken, Span);
+    type Item = (PToken<'src>, Span);
 
     /// preprocessing-token:
-    ///   header-name
+    ///   header-name         TODO
     ///   identifier
     ///   pp-number
-    ///   character-constant
+    ///   character-constant  TODO
     ///   string-literal
     ///   punctuator
     ///   each non-white-space character that cannot be one of the above
@@ -269,11 +275,10 @@ where
             match (char1, char2, char3) {
                 // IDENTIFIER
                 (c, _, _) if c.is_c_identifier_nondigit() => {
-                    println!("AA");
-                    break self.identifier(c, start_span);
+                    break self.identifier(start_span);
                 }
                 // NUMBER
-                (c, _, _) if c.is_c_identifier_digit() => break self.number(c, start_span),
+                (c, _, _) if c.is_c_identifier_digit() => break self.number(start_span),
                 // STRING
                 (b'"', _, _) => break self.string_literal(start_span),
                 // WHITESPACE
@@ -348,11 +353,10 @@ where
     }
 }
 
-pub fn preprocess_tokens(
-    src: impl Iterator<Item = (usize, u8)>,
-) -> impl Iterator<Item = (PToken, std::ops::Range<usize>)> {
+pub fn preprocess_tokens(src: &str) -> impl Iterator<Item = (PToken<'_>, std::ops::Range<usize>)> {
     let lexer = PLexer {
-        src: src.peekmore(),
+        src_str: src,
+        src: src.bytes().enumerate().peekmore(),
     };
     lexer
 }
@@ -361,8 +365,7 @@ pub fn preprocess_tokens(
 mod tests {
     macro_rules! lex_test {
         ($str:expr) => {
-            let bytes = $str.bytes().enumerate();
-            let tokens = super::preprocess_tokens(bytes);
+            let tokens = super::preprocess_tokens($str);
             let tokens = tokens.collect::<Vec<_>>();
             insta::assert_debug_snapshot!(tokens);
         };
