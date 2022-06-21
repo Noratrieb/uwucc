@@ -9,6 +9,7 @@ use crate::{
 ///   constant
 ///   string-literal
 ///   punctuator
+#[derive(Debug)]
 pub enum Token<'src> {
     Keyword(Keyword),
     Identifier(&'src str),
@@ -18,6 +19,7 @@ pub enum Token<'src> {
     Error,
 }
 
+#[derive(Debug)]
 pub enum Keyword {
     Auto,
     Break,
@@ -65,7 +67,13 @@ pub enum Keyword {
     ThreadLocal,
 }
 
-pub enum Constant {}
+#[derive(Debug)]
+pub enum Constant {
+    Int(i128),
+    Float(f64),
+    Char(u8),
+    // adding enumerations here makes no sense.
+}
 
 fn ident_to_keyword(ident: &str) -> Option<Keyword> {
     match ident {
@@ -117,8 +125,52 @@ fn ident_to_keyword(ident: &str) -> Option<Keyword> {
     }
 }
 
+fn pp_number_to_constant(number: &str) -> Option<Constant> {
+    let n = number.parse().ok()?;
+    Some(Constant::Int(n))
+}
+
 pub fn pre_tokens_to_tokens<'src>(
     pre_tokens: impl Iterator<Item = (PToken<'src>, Span)>,
 ) -> impl Iterator<Item = (Token<'src>, Span)> {
-    pre_tokens.map(|_| todo!())
+    pre_tokens.map(|(token, span)| {
+        let token = match token {
+            PToken::HeaderName(_) => todo!("header names aren't real, wake up"),
+            PToken::Identifier(ident) => match ident_to_keyword(ident) {
+                Some(keyword) => Token::Keyword(keyword),
+                None => Token::Identifier(ident),
+            },
+            PToken::PpNumber(number) => pp_number_to_constant(number)
+                .map(Token::Constant)
+                .unwrap_or(Token::Error),
+            PToken::CharConstant(u8) => Token::Constant(Constant::Char(u8)),
+            PToken::StringLiteral(lit) => Token::StringLiteral(lit),
+            PToken::Punctuator(p) => Token::Punctuator(p),
+            PToken::OtherNonWs(_) => Token::Error,
+            PToken::Error => Token::Error,
+        };
+        (token, span)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    macro_rules! lex_test {
+        ($src:expr) => {
+            let pre_tokens = crate::pre::preprocess_tokens($src);
+            let tokens = super::pre_tokens_to_tokens(pre_tokens);
+            let tokens = tokens.collect::<Vec<_>>();
+            insta::assert_debug_snapshot!(tokens);
+        };
+    }
+
+    #[test]
+    fn hello_world() {
+        let src = r#"
+int main() {
+    puts("Hello, World!");
+}
+"#;
+        lex_test!(src);
+    }
 }

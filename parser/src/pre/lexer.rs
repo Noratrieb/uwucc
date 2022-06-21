@@ -14,7 +14,7 @@ pub enum PToken<'src> {
     HeaderName(&'src str),
     Identifier(&'src str),
     PpNumber(&'src str),
-    CharConstant,
+    CharConstant(u8),
     StringLiteral(&'src str),
     Punctuator(Punctuator),
     OtherNonWs(u8),
