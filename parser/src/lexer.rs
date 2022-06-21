@@ -1,5 +1,13 @@
 //! Contrary to popular belief, Dennis Ritchie did not invent the C grammar.
 //! The C grammar was brought to Dennis Ritchie by a demon in his worst dreams
+//!
+//! Code might be bad. Possibly.
+
+use std::ops::Not;
+
+use peekmore::PeekMore;
+
+type Span = std::ops::Range<usize>;
 
 pub enum PToken {
     HeaderName(Vec<u8>),
@@ -55,9 +63,9 @@ pub enum Punctuator {
     Plus,
     /// -
     Minus,
-    /// ~
+    /// ~ (squiggly)
     Tilde,
-    /// ! 🔫
+    /// ! 🤯
     Bang,
     //// %
     Percent,
@@ -70,13 +78,13 @@ pub enum Punctuator {
     /// >
     RightChevron,
     /// <=
-    LeftChevronEqual,
+    LeftChevronEq,
     /// >=
-    RightChevronEqual,
+    RightChevronEq,
     /// ==
-    EqualEqual,
+    EqEq,
     /// !=
-    BangEqual,
+    BangEq,
     /// ^
     Caret,
     /// |
@@ -94,27 +102,27 @@ pub enum Punctuator {
     /// ...
     DotDotDot,
     /// =
-    Equal,
+    Eq,
     /// *=
-    AsteriskEqual,
+    AsteriskEq,
     /// /=
-    SlashEqual,
+    SlashEq,
     /// %=
-    PercentEqual,
+    PercentEq,
     /// +=
-    PlusEqual,
+    PlusEq,
     /// -=
-    MinusEqual,
+    MinusEq,
     /// <<=
-    LeftLeftChevronEqual,
+    LeftLeftChevronEq,
     /// >>=
-    RightRightChevronEqual,
+    RightRightChevronEq,
     /// &=
-    AmspersandEqual,
+    AmspersandEq,
     /// ^=
-    CaretEqual,
+    CaretEq,
     /// |=
-    PipeEqual,
+    PipeEq,
     /// ,
     Comma,
     /// #   %:
@@ -125,77 +133,130 @@ pub enum Punctuator {
 
 struct PLexer<I>
 where
-    I: Iterator<Item = u8>,
+    I: Iterator<Item = (usize, u8)>,
 {
     src: peekmore::PeekMoreIterator<I>,
 }
 
 impl<I> PLexer<I>
 where
-    I: Iterator<Item = u8>,
+    I: Iterator<Item = (usize, u8)>,
 {
     /// 6.4.2 Identifiers
     /// TODO: 6.4.3 Universal character names
-    fn identifier(&mut self, c: u8) -> PToken {
+    fn identifier(&mut self, c: u8, mut last_span: usize) -> (PToken, usize) {
         let mut ident = vec![c];
 
-        while let Some(&c) = self.src.peek() {
-            if let b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'0'..=b'9' = c {
+        while let Some((span, c)) = self.src.peek() {
+            let (span, c) = (*span, *c);
+            if c.is_c_identifier() {
                 self.src.next();
                 ident.push(c);
+                last_span = span;
             } else {
                 break;
             }
         }
 
-        PToken::Identifier(ident)
+        (PToken::Identifier(ident), last_span)
     }
 
     /// 6.4.8 Preprocessing numbers
-    fn number(&mut self, c: u8) -> PToken {
+    fn number(&mut self, c: u8, mut last_span: usize) -> (PToken, usize) {
         let mut number = vec![c];
 
-        while let Some(&c) = self.src.peek() {
-            if let b'0'..=b'9' = c {
+        while let Some((span, c)) = self.src.peek() {
+            let (span, c) = (*span, *c);
+            if c.is_ascii_digit() {
                 self.src.next();
                 number.push(c);
+                last_span = span;
             } else {
                 break;
             }
         }
 
-        PToken::PpNumber(number)
+        (PToken::PpNumber(number), last_span)
     }
 
     /// 6.4.5 String literals
-    fn string_literal(&mut self) -> PToken {
+    fn string_literal(&mut self, mut last_span: usize) -> (PToken, usize) {
         let mut string = Vec::new();
 
-        while let c @ b'"' = {
-            match self.src.next() {
-                Some(next) => next,
-                None => return PToken::Error,
+        loop {
+            let next = self.src.next();
+            match next {
+                Some((span, c)) => {
+                    if c == b'"' {
+                        break;
+                    }
+                    last_span = span;
+                    string.push(c);
+                }
+                None => return (PToken::Error, last_span),
             }
-        } {
-            string.push(c);
         }
-        PToken::StringLiteral(string)
+
+        (PToken::StringLiteral(string), last_span)
     }
 
-    fn s_p(&mut self) -> Option<&u8> {
+    /// source peek
+    fn s_p(&mut self) -> Option<&(usize, u8)> {
         self.src.peek()
     }
 
-    fn s_p_n(&mut self, n: usize) -> Option<&u8> {
+    /// source peek nth
+    fn s_p_n(&mut self, n: usize) -> Option<&(usize, u8)> {
         self.src.peek_nth(n)
+    }
+}
+
+macro_rules! triple_punct {
+    ($self:ident, $tok:ident) => {{
+        $self.src.next()?;
+        let (end, _) = $self.src.next()?;
+        break (TokP(Punctuator::$tok), end);
+    }};
+}
+
+macro_rules! double_punct {
+    ($self:ident, $tok:ident) => {{
+        let (end, _) = $self.src.next()?;
+        break (TokP(Punctuator::$tok), end);
+    }};
+}
+
+trait CLexExt {
+    fn is_c_identifier_nondigit(&self) -> bool;
+
+    fn is_c_identifier_digit(&self) -> bool;
+
+    fn is_c_identifier(&self) -> bool {
+        self.is_c_identifier_nondigit() || self.is_c_identifier_digit()
+    }
+
+    fn is_c_whitespace(&self) -> bool;
+}
+
+impl CLexExt for u8 {
+    fn is_c_identifier_nondigit(&self) -> bool {
+        matches!(self, b'a'..=b'z' | b'A'..=b'Z' | b'_')
+    }
+
+    fn is_c_identifier_digit(&self) -> bool {
+        matches!(self, b'0'..=b'9')
+    }
+
+    fn is_c_whitespace(&self) -> bool {
+        self.is_ascii_whitespace() // TODO: is it?
     }
 }
 
 impl<'src, I> Iterator for PLexer<I>
 where
-    I: Iterator<Item = u8>,
+    I: Iterator<Item = (usize, u8)>,
 {
-    type Item = PToken;
+    type Item = (PToken, Span);
 
     /// preprocessing-token:
     ///   header-name
@@ -208,154 +269,97 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         use PToken::Punctuator as TokP;
 
-        loop {
-            match self.src.next()? {
-                c @ (b'a'..=b'z' | b'A'..=b'Z' | b'_') => {
-                    return Some(self.identifier(c));
+        let (start_span, char1) = self.src.next()?;
+        let char2 = self.src.peek().map(|(_, c)| *c);
+        let char3 = self.src.peek_nth(2).map(|(_, c)| *c);
+
+        let (token, end_span) = loop {
+            match (char1, char2, char3) {
+                // IDENTIFIER
+                (c, _, _) if c.is_c_identifier_nondigit() => {
+                    break self.identifier(c, start_span);
                 }
-                c @ b'0'..=b'9' => return Some(self.number(c)),
-                b'"' => return Some(self.string_literal()),
-                c if c.is_ascii_whitespace() => {}
-                b'/' if self.s_p() == Some(&b'*') => loop {
-                    let first = self.src.next()?;
-                    let second = self.s_p();
-                    if first == b'*' && second == Some(&b'/') {
+                // NUMBER
+                (c, _, _) if c.is_c_identifier_digit() => break self.number(c, start_span),
+                // STRING
+                (b'"', _, _) => break self.string_literal(start_span),
+                // WHITESPACE
+                (c, _, _) if c.is_c_whitespace() => {}
+                // COMMENTS
+                (b'/', Some(b'*'), _) => loop {
+                    let (_, first) = self.src.next()?;
+                    let second = self.s_p().map(|(_, c)| *c);
+                    if first == b'*' && second == Some(b'/') {
                         self.src.next();
+                        break;
                     }
                 },
-                b'/' if self.s_p() == Some(&b'/') => while self.src.next() != Some(b'\n') {},
-                b'.' if self.s_p() == Some(&b'.') && self.s_p_n(2) == Some(&b'.') => {
-                    self.src.next();
-                    self.src.next();
-                    return Some(TokP(Punctuator::LeftLeftChevronEqual));
-                }
-                b'<' if self.s_p() == Some(&b'<') && self.s_p_n(2) == Some(&b'=') => {
-                    self.src.next();
-                    self.src.next();
-                    return Some(TokP(Punctuator::LeftLeftChevronEqual));
-                }
-                b'>' if self.s_p() == Some(&b'>') && self.s_p_n(2) == Some(&b'=') => {
-                    self.src.next();
-                    self.src.next();
-                    return Some(TokP(Punctuator::RightRightChevronEqual));
-                }
-                b'<' if self.s_p() == Some(&b':') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::BracketOpen));
-                }
-                b':' if self.s_p() == Some(&b'>') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::BracketClose));
-                }
-                b'<' if self.s_p() == Some(&b'%') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::BraceOpen));
-                }
-                b'%' if self.s_p() == Some(&b'>') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::BraceClose));
-                }
-                b'-' if self.s_p() == Some(&b'>') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::Arrow));
-                }
-                b'+' if self.s_p() == Some(&b'+') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::PlusPlus));
-                }
-                b'-' if self.s_p() == Some(&b'-') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::Minus));
-                }
-                b'<' if self.s_p() == Some(&b'<') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::LeftLeftChevron));
-                }
-                b'>' if self.s_p() == Some(&b'>') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::RightRightChevron));
-                }
-                b'<' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::LeftChevronEqual));
-                }
-                b'>' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::RightChevronEqual));
-                }
-                b'=' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::EqualEqual));
-                }
-                b'!' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::BangEqual));
-                }
-                b'&' if self.s_p() == Some(&b'&') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::AmpersandAmpersand));
-                }
-                b'|' if self.s_p() == Some(&b'|') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::PipePipe));
-                }
-                b'*' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::AsteriskEqual));
-                }
-                b'/' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::SlashEqual));
-                }
-                b'%' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::PercentEqual));
-                }
-                b'+' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::PlusEqual));
-                }
-                b'-' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::MinusEqual));
-                }
-                b'&' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::AmspersandEqual));
-                }
-                b'^' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::CaretEqual));
-                }
-                b'|' if self.s_p() == Some(&b'=') => {
-                    self.src.next();
-                    return Some(TokP(Punctuator::PipeEqual));
-                }
-                b'[' => return Some(TokP(Punctuator::BracketOpen)),
-                b']' => return Some(TokP(Punctuator::BracketClose)),
-                b'(' => return Some(TokP(Punctuator::ParenOpen)),
-                b'{' => return Some(TokP(Punctuator::BraceOpen)),
-                b')' => return Some(TokP(Punctuator::ParenClose)),
-                b'}' => return Some(TokP(Punctuator::BraceClose)),
-                b'.' => return Some(TokP(Punctuator::Dot)),
-                b'&' => return Some(TokP(Punctuator::Ampersand)),
-                b'*' => return Some(TokP(Punctuator::Asterisk)),
-                b'-' => return Some(TokP(Punctuator::Minus)),
-                b'~' => return Some(TokP(Punctuator::Tilde)),
-                b'!' => return Some(TokP(Punctuator::Bang)),
-                b'%' => return Some(TokP(Punctuator::Percent)),
-                b'<' => return Some(TokP(Punctuator::LeftChevron)),
-                b'>' => return Some(TokP(Punctuator::RightChevron)),
-                b'^' => return Some(TokP(Punctuator::Caret)),
-                b'|' => return Some(TokP(Punctuator::Pipe)),
-                b'?' => return Some(TokP(Punctuator::QuestionMark)),
-                b':' => return Some(TokP(Punctuator::Colon)),
-                b';' => return Some(TokP(Punctuator::Semicolon)),
-                b'=' => return Some(TokP(Punctuator::Equal)),
-                b',' => return Some(TokP(Punctuator::Comma)),
-                b'#' => return Some(TokP(Punctuator::Hash)),
-                c => return Some(PToken::OtherNonWs(c)),
+                (b'/', Some(b'/'), _) => while matches!(self.src.next(), Some((_, b'\n'))).not() {},
+                // TRIPLE CHARACTER PUNCTUATION
+                (b'.', Some(b'.'), Some(b'.')) => triple_punct!(self, DotDotDot),
+                (b'<', Some(b'<'), Some(b'=')) => triple_punct!(self, LeftLeftChevronEq),
+                (b'>', Some(b'>'), Some(b'=')) => triple_punct!(self, RightRightChevronEq),
+                // DOUBLE CHARACTER PUNCTUATION
+                (b'<', Some(b':'), _) => double_punct!(self, BracketOpen),
+                (b':', Some(b'>'), _) => double_punct!(self, BracketClose),
+                (b'<', Some(b'%'), _) => double_punct!(self, BraceOpen),
+                (b'%', Some(b'>'), _) => double_punct!(self, BraceClose),
+                (b'-', Some(b'>'), _) => double_punct!(self, Arrow),
+                (b'+', Some(b'+'), _) => double_punct!(self, PlusPlus),
+                (b'-', Some(b'-'), _) => double_punct!(self, MinusMinus),
+                (b'<', Some(b'<'), _) => double_punct!(self, LeftLeftChevron),
+                (b'>', Some(b'>'), _) => double_punct!(self, RightRightChevron),
+                (b'<', Some(b'='), _) => double_punct!(self, PlusPlus),
+                (b'>', Some(b'='), _) => double_punct!(self, RightChevronEq),
+                (b'=', Some(b'='), _) => double_punct!(self, EqEq),
+                (b'!', Some(b'='), _) => double_punct!(self, BangEq),
+                (b'&', Some(b'&'), _) => double_punct!(self, AmpersandAmpersand),
+                (b'|', Some(b'|'), _) => double_punct!(self, PipePipe),
+                (b'*', Some(b'='), _) => double_punct!(self, AsteriskEq),
+                (b'/', Some(b'='), _) => double_punct!(self, SlashEq),
+                (b'%', Some(b'='), _) => double_punct!(self, PercentEq),
+                (b'+', Some(b'='), _) => double_punct!(self, PlusEq),
+                (b'-', Some(b'='), _) => double_punct!(self, MinusEq),
+                (b'&', Some(b'='), _) => double_punct!(self, AmspersandEq),
+                (b'^', Some(b'='), _) => double_punct!(self, CaretEq),
+                (b'|', Some(b'='), _) => double_punct!(self, PipeEq),
+                // SINGLE CHARACTER PUNCTUATION
+                (b'[', _, _) => break (TokP(Punctuator::BracketOpen), start_span),
+                (b']', _, _) => break (TokP(Punctuator::BracketClose), start_span),
+                (b'(', _, _) => break (TokP(Punctuator::ParenOpen), start_span),
+                (b'{', _, _) => break (TokP(Punctuator::BraceOpen), start_span),
+                (b')', _, _) => break (TokP(Punctuator::ParenClose), start_span),
+                (b'}', _, _) => break (TokP(Punctuator::BraceClose), start_span),
+                (b'.', _, _) => break (TokP(Punctuator::Dot), start_span),
+                (b'&', _, _) => break (TokP(Punctuator::Ampersand), start_span),
+                (b'*', _, _) => break (TokP(Punctuator::Asterisk), start_span),
+                (b'-', _, _) => break (TokP(Punctuator::Minus), start_span),
+                (b'~', _, _) => break (TokP(Punctuator::Tilde), start_span),
+                (b'!', _, _) => break (TokP(Punctuator::Bang), start_span),
+                (b'%', _, _) => break (TokP(Punctuator::Percent), start_span),
+                (b'<', _, _) => break (TokP(Punctuator::LeftChevron), start_span),
+                (b'>', _, _) => break (TokP(Punctuator::RightChevron), start_span),
+                (b'^', _, _) => break (TokP(Punctuator::Caret), start_span),
+                (b'|', _, _) => break (TokP(Punctuator::Pipe), start_span),
+                (b'?', _, _) => break (TokP(Punctuator::QuestionMark), start_span),
+                (b':', _, _) => break (TokP(Punctuator::Colon), start_span),
+                (b';', _, _) => break (TokP(Punctuator::Semicolon), start_span),
+                (b'=', _, _) => break (TokP(Punctuator::Eq), start_span),
+                (b',', _, _) => break (TokP(Punctuator::Comma), start_span),
+                (b'#', _, _) => break (TokP(Punctuator::Hash), start_span),
+                (c, _, _) => break (PToken::OtherNonWs(c), start_span),
             }
-        }
+        };
+
+        Some((token, start_span..end_span + 1))
     }
+}
+
+pub fn preprocess_tokens(
+    src: impl Iterator<Item = (usize, u8)>,
+) -> impl Iterator<Item = (PToken, std::ops::Range<usize>)> {
+    let lexer = PLexer {
+        src: src.peekmore(),
+    };
+    lexer
 }
