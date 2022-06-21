@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     pre::{PToken, Punctuator},
     Span,
@@ -11,7 +13,7 @@ use crate::{
 ///   punctuator
 #[derive(Debug)]
 pub enum Token<'src> {
-    Keyword(Keyword),
+    Kw(Keyword),
     Identifier(&'src str),
     Constant(Constant),
     StringLiteral(&'src str),
@@ -137,7 +139,7 @@ pub fn pre_tokens_to_tokens<'src>(
         let token = match token {
             PToken::HeaderName(_) => todo!("header names aren't real, wake up"),
             PToken::Identifier(ident) => match ident_to_keyword(ident) {
-                Some(keyword) => Token::Keyword(keyword),
+                Some(keyword) => Token::Kw(keyword),
                 None => Token::Identifier(ident),
             },
             PToken::PpNumber(number) => pp_number_to_constant(number)
@@ -151,6 +153,80 @@ pub fn pre_tokens_to_tokens<'src>(
         };
         (token, span)
     })
+}
+
+impl Display for Token<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::Kw(kw) => Display::fmt(kw, f),
+            Token::Identifier(ident) => Display::fmt(ident, f),
+            Token::Constant(c) => Display::fmt(c, f),
+            Token::StringLiteral(str) => write!(f, "\"{}\"", str),
+            Token::Punctuator(p) => Display::fmt(p, f),
+            Token::Error => f.write_str("<invalid token>"),
+        }
+    }
+}
+
+impl Display for Keyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Keyword::Auto => f.write_str("auto"),
+            Keyword::Break => f.write_str("break"),
+            Keyword::Case => f.write_str("case"),
+            Keyword::Char => f.write_str("char"),
+            Keyword::Const => f.write_str("const"),
+            Keyword::Continue => f.write_str("continue"),
+            Keyword::Default => f.write_str("default"),
+            Keyword::Do => f.write_str("do"),
+            Keyword::Double => f.write_str("double"),
+            Keyword::Else => f.write_str("else"),
+            Keyword::Enum => f.write_str("enum"),
+            Keyword::Extern => f.write_str("extern"),
+            Keyword::Float => f.write_str("float"),
+            Keyword::For => f.write_str("for"),
+            Keyword::Goto => f.write_str("goto"),
+            Keyword::If => f.write_str("if"),
+            Keyword::Inline => f.write_str("inline"),
+            Keyword::Int => f.write_str("int"),
+            Keyword::Long => f.write_str("long"),
+            Keyword::Register => f.write_str("register"),
+            Keyword::Restrict => f.write_str("restrict"),
+            Keyword::Return => f.write_str("return"),
+            Keyword::Short => f.write_str("short"),
+            Keyword::Signed => f.write_str("signed"),
+            Keyword::Sizeof => f.write_str("sizeof"),
+            Keyword::Static => f.write_str("static"),
+            Keyword::Struct => f.write_str("struct"),
+            Keyword::Switch => f.write_str("switch"),
+            Keyword::Typedef => f.write_str("typedef"),
+            Keyword::Union => f.write_str("union"),
+            Keyword::Unsigned => f.write_str("unsigned"),
+            Keyword::Void => f.write_str("void"),
+            Keyword::Volatile => f.write_str("volatile"),
+            Keyword::While => f.write_str("while"),
+            Keyword::Alignas => f.write_str("_Alignas"),
+            Keyword::Alignof => f.write_str("_Alignof"),
+            Keyword::Atomic => f.write_str("_Atomic"),
+            Keyword::Bool => f.write_str("_Bool"),
+            Keyword::Complex => f.write_str("_Complex"),
+            Keyword::Generic => f.write_str("_Generic"),
+            Keyword::Imaginary => f.write_str("_Imaginary"),
+            Keyword::Noreturn => f.write_str("_Noreturn"),
+            Keyword::StaticAssert => f.write_str("_Static_assert"),
+            Keyword::ThreadLocal => f.write_str("_Thread_local"),
+        }
+    }
+}
+
+impl Display for Constant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Constant::Int(int) => Display::fmt(int, f),
+            Constant::Float(float) => Display::fmt(float, f),
+            Constant::Char(c) => write!(f, "'{}'", *c as char),
+        }
+    }
 }
 
 #[cfg(test)]

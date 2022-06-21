@@ -3,7 +3,7 @@
 //!
 //! Code might be bad. Possibly.
 
-use std::ops::Not;
+use std::{ops::Not, fmt::Display};
 
 use peekmore::PeekMore;
 
@@ -117,6 +117,60 @@ pub enum Punctuator {
     Hash,
     /// ##   %:%:
     HashHash,
+}
+
+impl Display for Punctuator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Punctuator::BracketOpen => f.write_str("["),
+            Punctuator::BracketClose => f.write_str("]"),
+            Punctuator::ParenOpen => f.write_str("("),
+            Punctuator::ParenClose => f.write_str(")"),
+            Punctuator::BraceOpen => f.write_str("{"),
+            Punctuator::BraceClose => f.write_str("}"),
+            Punctuator::Dot => f.write_str("."),
+            Punctuator::Arrow => f.write_str("->"),
+            Punctuator::PlusPlus => f.write_str("++"),
+            Punctuator::MinusMinus => f.write_str("--"),
+            Punctuator::Ampersand => f.write_str("&"),
+            Punctuator::Asterisk => f.write_str("*"),
+            Punctuator::Plus => f.write_str("+"),
+            Punctuator::Minus => f.write_str("-"),
+            Punctuator::Tilde => f.write_str("~"),
+            Punctuator::Bang => f.write_str("!"),
+            Punctuator::Percent => f.write_str("%"),
+            Punctuator::LeftLeftChevron => f.write_str("<<"),
+            Punctuator::RightRightChevron => f.write_str(">>"),
+            Punctuator::LeftChevron => f.write_str("<"),
+            Punctuator::RightChevron => f.write_str(">"),
+            Punctuator::LeftChevronEq => f.write_str("<="),
+            Punctuator::RightChevronEq => f.write_str(">="),
+            Punctuator::EqEq => f.write_str("=="),
+            Punctuator::BangEq => f.write_str("!="),
+            Punctuator::Caret => f.write_str("^"),
+            Punctuator::Pipe => f.write_str("|"),
+            Punctuator::AmpersandAmpersand => f.write_str("&&"),
+            Punctuator::PipePipe => f.write_str("||"),
+            Punctuator::QuestionMark => f.write_str("?"),
+            Punctuator::Colon => f.write_str(":"),
+            Punctuator::Semicolon => f.write_str(";"),
+            Punctuator::DotDotDot => f.write_str("..."),
+            Punctuator::Eq => f.write_str("="),
+            Punctuator::AsteriskEq => f.write_str("*="),
+            Punctuator::SlashEq => f.write_str("/="),
+            Punctuator::PercentEq => f.write_str("%="),
+            Punctuator::PlusEq => f.write_str("+="),
+            Punctuator::MinusEq => f.write_str("-="),
+            Punctuator::LeftLeftChevronEq => f.write_str("<<="),
+            Punctuator::RightRightChevronEq => f.write_str(">>="),
+            Punctuator::AmspersandEq => f.write_str("&="),
+            Punctuator::CaretEq => f.write_str("^="),
+            Punctuator::PipeEq => f.write_str("|="),
+            Punctuator::Comma => f.write_str(","),
+            Punctuator::Hash => f.write_str("#"),
+            Punctuator::HashHash => f.write_str("##"),
+        }
+    }
 }
 
 struct PLexer<'src, I>

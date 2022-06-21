@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![warn(rust_2018_idioms)]
 
+mod ast;
+mod parser;
 mod pre;
 mod token;
 
