@@ -1,5 +1,5 @@
 //! Contrary to popular belief, Dennis Ritchie did not invent the C grammar.
-//! The C grammar was brought to Dennis Ritchie by a demon in hos worst dreams
+//! The C grammar was brought to Dennis Ritchie by a demon in his worst dreams
 
 pub enum PToken {
     HeaderName(Vec<u8>),
@@ -207,6 +207,18 @@ where
                 b'"' => return Some(self.string_literal()),
                 b'[' => return Some(PToken::Punctuator(Punctuator::BraceOpen)),
                 c if c.is_ascii_whitespace() => {}
+                b'/' if self.src.peek() == Some(&b'*') => {
+                    loop {
+                        let first = self.src.next()?;
+                        let second = self.src.peek();
+                        if first == b'*' && second == Some(&b'/') {
+                            self.src.next();
+                        }
+                    }
+                }
+                b'/' if self.src.peek() == Some(&b'/') => {
+                    while self.src.next() != Some(b'\n') {}
+                }
                 c => return Some(PToken::OtherNonWs(c)),
             }
         }
