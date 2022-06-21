@@ -1,0 +1,24 @@
+---
+source: parser/src/pre/lexer.rs
+expression: tokens
+---
+[
+    (
+        Punctuator(
+            Dot,
+        ),
+        0..1,
+    ),
+    (
+        Punctuator(
+            LeftLeftChevronEq,
+        ),
+        2..5,
+    ),
+    (
+        Punctuator(
+            Dot,
+        ),
+        6..7,
+    ),
+]

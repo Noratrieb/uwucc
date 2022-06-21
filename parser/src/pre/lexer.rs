@@ -199,11 +199,6 @@ where
     fn s_p(&mut self) -> Option<&(usize, u8)> {
         self.src.peek()
     }
-
-    /// source peek nth
-    fn s_p_n(&mut self, n: usize) -> Option<&(usize, u8)> {
-        self.src.peek_nth(n)
-    }
 }
 
 macro_rules! triple_punct {
@@ -270,7 +265,7 @@ where
             let (span, char1) = self.src.next()?;
             start_span = span;
             let char2 = self.src.peek().map(|(_, c)| *c);
-            let char3 = self.src.peek_nth(2).map(|(_, c)| *c);
+            let char3 = self.src.peek_nth(1).map(|(_, c)| *c);
 
             match (char1, char2, char3) {
                 // IDENTIFIER
@@ -378,12 +373,30 @@ mod tests {
     }
 
     #[test]
+    fn left_left_chevron_eq() {
+        let src = r#". <<= ."#;
+        lex_test!(src);
+    }
+
+    #[test]
     fn hello_world() {
         let src = r#"
 int main() {
     puts("Hello, World!");
 }
 "#;
+        lex_test!(src);
+    }
+
+    #[test]
+    fn some_operators() {
+        let src= r#"
+int hello(const char* uwu) <%
+    uwu[5] <<= 23;
+    *uwu * (p++);
+    return p;
+%>"#;
+
         lex_test!(src);
     }
 }
