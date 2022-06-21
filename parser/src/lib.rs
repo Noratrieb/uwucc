@@ -22,6 +22,10 @@ impl Span {
     }
 }
 
+impl dbg_pls::DebugPls for Span {
+    fn fmt(&self, f: dbg_pls::Formatter<'_>) {}
+}
+
 pub fn parse_file(src: &str) {
     println!("{src}");
 }

@@ -36,3 +36,11 @@ pub struct DeclSpec {
     pub ty: TypeSpecifier,
     pub attrs: DeclAttr,
 }
+
+#[derive(Debug, DebugPls)]
+pub struct FunctionDefinition {
+    pub decl_spec: Spanned<DeclSpec>,
+    pub declarator: Spanned<String>,
+    pub declaration_list: Spanned<Vec<()>>,
+    pub body: Vec<()>,
+}

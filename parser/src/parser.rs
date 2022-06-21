@@ -1,10 +1,11 @@
 use peekmore::PeekMoreIterator;
 
 use crate::{
-    ast::{DeclAttr, DeclSpec, Spanned, TypeSpecifier},
+    ast::{DeclAttr, DeclSpec, FunctionDefinition, Spanned, TypeSpecifier},
     token::{Keyword as Kw, Token as Tok},
     Span,
 };
+use crate::pre::Punctuator;
 
 struct ParserError {
     span: Span,
@@ -34,6 +35,20 @@ where
     lex: PeekMoreIterator<I>,
 }
 
+macro_rules! expect {
+    ($self:ident, $pat:pat) => {
+        match $self.next_t()? {
+            ($pat, span) => span,
+            (token, span) => {
+                return Err(ParserError::new(
+                    span,
+                    format!(concat!("expected `", stringify!($pat), "`, found {}"), token),
+                ))
+            }
+        }
+    };
+}
+
 impl<'src, I> Parser<'src, I>
 where
     I: Iterator<Item = (Tok<'src>, Span)>,
@@ -48,6 +63,16 @@ where
 
     fn peek_t(&mut self) -> Result<&(Tok<'src>, Span)> {
         self.lex.peek().ok_or_else(ParserError::eof)
+    }
+
+    fn ident(&mut self) -> Result<Spanned<String>> {
+        match self.next_t()? {
+            (Tok::Identifier(ident), span) => Ok((ident.to_string(), span)),
+            (tok, span) => Err(ParserError::new(
+                span,
+                format!("expected identifier, found `{tok}`"),
+            )),
+        }
     }
 
     // -----------------------
@@ -142,11 +167,16 @@ where
         Ok((ty, span))
     }
 
+    /// (6.7.6) declarator:
+    ///     pointer.opt direct-declarator
+    fn declarator(&mut self) -> Result<Spanned<String>> {
+        todo!()
+    }
+
     // -----------------------
-    // External definitions 
+    // External definitions
     // -----------------------
 
-    
     /// (6.9) external-declaration:
     ///     function-definition
     ///     declaration
@@ -167,7 +197,26 @@ where
 
     /// (6.9.1) function-definition:
     ///     declaration-specifiers declarator declaration-list.opt compound-statement
-    fn function_definition(&mut self, specifiers: Spanned<DeclSpec>) -> Result<Spanned<()>> {
-        todo!()
+    fn function_definition(
+        &mut self,
+        decl_spec: Spanned<DeclSpec>,
+    ) -> Result<Spanned<FunctionDefinition>> {
+        let declarator = self.ident()?;
+
+        let decl_spec_span = decl_spec.1;
+
+        let def = FunctionDefinition {
+            decl_spec,
+            declarator,
+            declaration_list: (Vec::new(), Span::default()),
+            body: Vec::new(),
+        };
+
+        expect!(self, Tok::Punctuator(Punctuator::ParenOpen));
+        expect!(self, Tok::Punctuator(Punctuator::ParenClose));
+        expect!(self, Tok::Punctuator(Punctuator::BraceOpen));
+        let last = expect!(self, Tok::Punctuator(Punctuator::BraceClose));
+
+        Ok((def, decl_spec_span.extend(last)))
     }
 }
