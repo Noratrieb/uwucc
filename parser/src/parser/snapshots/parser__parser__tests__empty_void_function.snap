@@ -1,0 +1,30 @@
+---
+source: parser/src/parser/tests.rs
+expression: parsed
+---
+Ok(
+    (
+        FunctionDefinition {
+            decl_spec: (
+                DeclSpec {
+                    ty: Void,
+                    attrs: DeclAttr {
+                        is_extern: false,
+                        is_static: false,
+                        is_thread_local: false,
+                    },
+                },
+                1..5,
+            ),
+            declarator: (
+                "uwu",
+                6..9,
+            ),
+            declaration_list: List(
+                [],
+            ),
+            body: [],
+        },
+        1..14,
+    ),
+)

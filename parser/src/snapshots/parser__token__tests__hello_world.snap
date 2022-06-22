@@ -4,7 +4,7 @@ expression: tokens
 ---
 [
     (
-        Keyword(
+        Kw(
             Int,
         ),
         1..4,
@@ -16,19 +16,19 @@ expression: tokens
         5..9,
     ),
     (
-        Punctuator(
+        Punct(
             ParenOpen,
         ),
         9..10,
     ),
     (
-        Punctuator(
+        Punct(
             ParenClose,
         ),
         10..11,
     ),
     (
-        Punctuator(
+        Punct(
             BraceOpen,
         ),
         12..13,
@@ -40,7 +40,7 @@ expression: tokens
         18..22,
     ),
     (
-        Punctuator(
+        Punct(
             ParenOpen,
         ),
         22..23,
@@ -52,19 +52,19 @@ expression: tokens
         23..37,
     ),
     (
-        Punctuator(
+        Punct(
             ParenClose,
         ),
         38..39,
     ),
     (
-        Punctuator(
+        Punct(
             Semicolon,
         ),
         39..40,
     ),
     (
-        Punctuator(
+        Punct(
             BraceClose,
         ),
         41..42,

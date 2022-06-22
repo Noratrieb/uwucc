@@ -9,7 +9,7 @@ use peekmore::PeekMore;
 
 use crate::Span;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum PToken<'src> {
     HeaderName(&'src str),
     Identifier(&'src str),
@@ -21,7 +21,7 @@ pub enum PToken<'src> {
     Error,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Punctuator {
     /// [   <:
     BracketOpen,

@@ -38,9 +38,38 @@ pub struct DeclSpec {
 }
 
 #[derive(Debug, DebugPls)]
+pub enum Declaration {
+    Normal {
+        decl_spec: DeclSpec,
+        name: Option<String>,
+        initializer: Option<()>,
+        pointer: bool,
+    },
+    StaticAssert,
+}
+
+#[derive(Debug, DebugPls)]
+pub struct Declarator {
+    pub identifier: String,
+    pub pointer: bool,
+}
+
+#[derive(Debug, DebugPls)]
+pub struct FunctionParamDecl {
+    pub decl_spec: DeclSpec,
+    pub declarator: Declarator,
+}
+
+#[derive(Debug, DebugPls)]
+pub enum FunctionParameters {
+    Void(Span),
+    List(Vec<Spanned<FunctionParamDecl>>),
+}
+
+#[derive(Debug, DebugPls)]
 pub struct FunctionDefinition {
     pub decl_spec: Spanned<DeclSpec>,
     pub declarator: Spanned<String>,
-    pub declaration_list: Spanned<Vec<()>>,
+    pub declaration_list: FunctionParameters,
     pub body: Vec<()>,
 }

@@ -11,17 +11,17 @@ use crate::{
 ///   constant
 ///   string-literal
 ///   punctuator
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Token<'src> {
     Kw(Keyword),
     Identifier(&'src str),
     Constant(Constant),
     StringLiteral(&'src str),
-    Punctuator(Punctuator),
+    Punct(Punctuator),
     Error,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Keyword {
     Auto,
     Break,
@@ -69,7 +69,7 @@ pub enum Keyword {
     ThreadLocal,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Constant {
     Int(i128),
     Float(f64),
@@ -147,7 +147,7 @@ pub fn pre_tokens_to_tokens<'src>(
                 .unwrap_or(Token::Error),
             PToken::CharConstant(u8) => Token::Constant(Constant::Char(u8)),
             PToken::StringLiteral(lit) => Token::StringLiteral(lit),
-            PToken::Punctuator(p) => Token::Punctuator(p),
+            PToken::Punctuator(p) => Token::Punct(p),
             PToken::OtherNonWs(_) => Token::Error,
             PToken::Error => Token::Error,
         };
@@ -162,7 +162,7 @@ impl Display for Token<'_> {
             Token::Identifier(ident) => Display::fmt(ident, f),
             Token::Constant(c) => Display::fmt(c, f),
             Token::StringLiteral(str) => write!(f, "\"{}\"", str),
-            Token::Punctuator(p) => Display::fmt(p, f),
+            Token::Punct(p) => Display::fmt(p, f),
             Token::Error => f.write_str("<invalid token>"),
         }
     }

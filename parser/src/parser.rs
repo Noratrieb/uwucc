@@ -1,12 +1,16 @@
 use peekmore::PeekMoreIterator;
 
 use crate::{
-    ast::{DeclAttr, DeclSpec, FunctionDefinition, Spanned, TypeSpecifier},
+    ast::{
+        DeclAttr, DeclSpec, Declaration, Declarator, FunctionDefinition, FunctionParamDecl,
+        FunctionParameters, Spanned, TypeSpecifier,
+    },
+    pre::Punctuator as Punct,
     token::{Keyword as Kw, Token as Tok},
     Span,
 };
-use crate::pre::Punctuator;
 
+#[derive(Debug)]
 struct ParserError {
     span: Span,
     message: String,
@@ -42,18 +46,49 @@ macro_rules! expect {
             (token, span) => {
                 return Err(ParserError::new(
                     span,
-                    format!(concat!("expected `", stringify!($pat), "`, found {}"), token),
+                    format!(
+                        concat!("expected `", stringify!($pat), "`, found {}"),
+                        token
+                    ),
                 ))
             }
         }
     };
 }
 
+/// Can be called for the start of a sequence of tokens that could be a type.
+#[rustfmt::skip]
+fn is_tok_start_of_ty(tok: &Tok<'_>) -> bool {
+    match tok {
+        Tok::Kw(
+            // storage specifiers
+            Kw::Typedef | Kw::Extern | Kw::Static | Kw::ThreadLocal | Kw::Auto | Kw::Register
+            // primitive types
+            | Kw::Void | Kw::Char | Kw::Short | Kw::Int | Kw::Long | Kw::Float | Kw::Double
+            | Kw::Signed | Kw::Unsigned | Kw::Bool | Kw::Complex
+            // struct-union-enum
+            | Kw::Struct | Kw::Union | Kw::Enum
+            // atomic
+            | Kw::Atomic
+            // type qualifiers
+            | Kw::Const | Kw::Restrict | Kw::Volatile /* atomic too */
+            // function specifiers
+            | Kw::Inline | Kw::Noreturn
+        ) => true,
+        Tok::Identifier(_) => false, // TODO: lookup typedefs!
+        _ => false,
+    }
+}
+
 impl<'src, I> Parser<'src, I>
 where
     I: Iterator<Item = (Tok<'src>, Span)>,
 {
-    fn find_typedef(&self, ident: &str) -> Option<()> {
+    // -----------------------
+    // Helpers
+    // -----------------------
+
+    fn find_typedef(&self, _: &str) -> Option<()> {
         None // TODO: this
     }
 
@@ -63,6 +98,10 @@ where
 
     fn peek_t(&mut self) -> Result<&(Tok<'src>, Span)> {
         self.lex.peek().ok_or_else(ParserError::eof)
+    }
+
+    fn peek_t_n(&mut self, n: usize) -> Result<&(Tok<'src>, Span)> {
+        self.lex.peek_nth(n).ok_or_else(ParserError::eof)
     }
 
     fn ident(&mut self) -> Result<Spanned<String>> {
@@ -75,6 +114,13 @@ where
         }
     }
 
+    fn is_peek_tok_start_of_ty(&mut self) -> bool {
+        match self.peek_t() {
+            Ok((tok, _)) => is_tok_start_of_ty(tok),
+            Err(_) => false,
+        }
+    }
+
     // -----------------------
     // Declarations
     // -----------------------
@@ -82,8 +128,25 @@ where
     /// (6.7) declaration:
     ///     declaration-specifiers init-declarator-listopt ;
     ///     static_assert-declaration
-    fn declaration(&mut self) -> Result<Spanned<()>> {
-        todo!()
+    fn declaration(&mut self) -> Result<Spanned<Declaration>> {
+        if let &(tok @ Tok::Kw(Kw::StaticAssert), span) = self.peek_t()? {
+            self.next_t()?;
+            return Err(ParserError::unsupported(span, &tok));
+        }
+
+        // first, some declaration-specifiers
+        let _decl_spec = self.declaration_specifiers()?;
+        // then (optionally), a declarator
+        // (6.7.6) declarator:
+        //      pointer.opt direct-declarator
+        if let &(tok @ Tok::Punct(Punct::Asterisk), span) = self.peek_t()? {
+            self.next_t()?;
+            return Err(ParserError::unsupported(span, &tok));
+        }
+
+        // then (optionally), an initializer
+
+        todo!("this doesn't work like this")
     }
 
     /// (6.7) declaration-specifiers:
@@ -169,7 +232,7 @@ where
 
     /// (6.7.6) declarator:
     ///     pointer.opt direct-declarator
-    fn declarator(&mut self) -> Result<Spanned<String>> {
+    fn declarator(&mut self) -> Result<Spanned<Declarator>> {
         todo!()
     }
 
@@ -180,7 +243,7 @@ where
     /// (6.9) external-declaration:
     ///     function-definition
     ///     declaration
-    fn external_declaration(&mut self) -> Result<()> {
+    fn external_declaration(&mut self) -> Result<Spanned<FunctionDefinition>> {
         let (next, span) = self.peek_t()?;
         if let Tok::Kw(Kw::StaticAssert) = next {
             return Err(ParserError::unsupported(*span, next));
@@ -190,13 +253,18 @@ where
 
         // TODO: We just assume that it's a function, that's terrible!
 
-        self.function_definition(decl_spec)?;
-
-        todo!()
+        self.function_definition(decl_spec)
     }
 
     /// (6.9.1) function-definition:
     ///     declaration-specifiers declarator declaration-list.opt compound-statement
+    /// IMPORTANT TODO DO NOT FORGET THIS IS MISSION CRITICAL
+    /// THERE ARE RULES FOR parameter-type-list
+    /// WE ARE IN direct-declarator HERE
+    /// USE THIS
+    /// DO NOT DO THIS WRONGLY
+    /// C IS ONLY HALF HAS SHITTY AS IT SOUNDS
+    /// OK BUT HALF IS STILL A LOT
     fn function_definition(
         &mut self,
         decl_spec: Spanned<DeclSpec>,
@@ -205,18 +273,67 @@ where
 
         let decl_spec_span = decl_spec.1;
 
+        expect!(self, Tok::Punct(Punct::ParenOpen));
+
+        let declaration_list = self.function_param_declaration_list()?;
+
+        expect!(self, Tok::Punct(Punct::ParenClose));
+
+        expect!(self, Tok::Punct(Punct::BraceOpen));
+
         let def = FunctionDefinition {
             decl_spec,
             declarator,
-            declaration_list: (Vec::new(), Span::default()),
+            declaration_list,
             body: Vec::new(),
         };
 
-        expect!(self, Tok::Punctuator(Punctuator::ParenOpen));
-        expect!(self, Tok::Punctuator(Punctuator::ParenClose));
-        expect!(self, Tok::Punctuator(Punctuator::BraceOpen));
-        let last = expect!(self, Tok::Punctuator(Punctuator::BraceClose));
+        let last = expect!(self, Tok::Punct(Punct::BraceClose));
 
         Ok((def, decl_spec_span.extend(last)))
     }
+
+    fn function_param_declaration_list(&mut self) -> Result<FunctionParameters> {
+        // If the declarator includes a parameter type list, the declaration of each parameter shall
+        // include an identifier, except for the special case of a parameter list consisting of a single
+        // parameter of type void, in which case there shall not be an identifier. No declaration list
+        // shall follow.
+        if let &(Tok::Kw(Kw::Void), span) = self.peek_t()? {
+            if let (Tok::Punct(Punct::ParenClose), _) = self.peek_t_n(1)? {
+                self.next_t()?;
+                return Ok(FunctionParameters::Void(span));
+            }
+        }
+
+        let mut params = Vec::new();
+
+        if self.is_peek_tok_start_of_ty() {
+            let (decl_spec, span1) = self.declaration_specifiers()?;
+            let (declarator, span2) = self.declarator()?;
+            let param = FunctionParamDecl {
+                decl_spec,
+                declarator,
+            };
+
+            params.push((param, span1.extend(span2)));
+        }
+
+        while self.is_peek_tok_start_of_ty() {
+            expect!(self, Tok::Punct(Punct::Comma));
+            let (decl_spec, span1) = self.declaration_specifiers()?;
+            let (declarator, span2) = self.declarator()?;
+            let param = FunctionParamDecl {
+                decl_spec,
+                declarator,
+            };
+
+            params.push((param, span1.extend(span2)));
+
+        }
+
+        Ok(FunctionParameters::List(params))
+    }
 }
+
+#[cfg(test)]
+mod tests;

@@ -1,12 +1,14 @@
 #![allow(dead_code)]
 #![warn(rust_2018_idioms)]
 
+use std::fmt::Debug;
+
 mod ast;
 mod parser;
 mod pre;
 mod token;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+#[derive(PartialEq, Eq, Clone, Copy, Default)]
 pub struct Span {
     pub start: usize,
     pub end: usize,
@@ -23,7 +25,15 @@ impl Span {
 }
 
 impl dbg_pls::DebugPls for Span {
-    fn fmt(&self, f: dbg_pls::Formatter<'_>) {}
+    fn fmt(&self, f: dbg_pls::Formatter<'_>) {
+        dbg_pls::DebugPls::fmt(&(self.start..self.end), f)
+    }
+}
+
+impl Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&(self.start..self.end), f)
+    }
 }
 
 pub fn parse_file(src: &str) {
