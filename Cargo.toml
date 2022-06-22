@@ -2,7 +2,7 @@
 members = [".", "./parser"]
 
 [package]
-name = "uwuc"
+name = "uwucc"
 version = "0.1.0"
 edition = "2021"
 
