@@ -15,7 +15,7 @@ fn the_current_root_parse_thing<'src>(src: impl Iterator<Item = (Tok<'src>, Span
         lex: src.peekmore(),
     };
 
-    parser.external_declaration()
+    parser.external_declarations()
 }
 
 macro_rules! parse_test {
@@ -49,6 +49,16 @@ extern volatile _Thread_local int uwu() {}
 fn empty_function_with_params() {
     let src = r#"
 int uwu(long owo, unsigned qwq) {}
+    "#;
+
+    parse_test!(src);
+}
+
+#[test]
+fn global_variable_declarations() {
+    let src = r#"
+int test;
+_Thread_local double uwu, owo;
     "#;
 
     parse_test!(src);

@@ -3,42 +3,44 @@ source: parser/src/parser/tests.rs
 expression: parsed
 ---
 Ok(
-    (
-        FunctionDef(
-            FunctionDef {
-                declaration: Normal(
-                    NormalDecl {
-                        decl_spec: DeclSpec {
-                            ty: Void,
-                            attrs: DeclAttr {
-                                is_extern: false,
-                                is_static: false,
-                                is_thread_local: false,
-                            },
-                        },
-                        init_declarators: [
-                            (
-                                InitDecl {
-                                    declarator: Declarator {
-                                        decl: WithParams {
-                                            ident: (
-                                                "uwu",
-                                                6..9,
-                                            ),
-                                            params: [],
-                                        },
-                                        pointer: false,
-                                    },
-                                    init: None,
+    [
+        (
+            FunctionDef(
+                FunctionDef {
+                    declaration: Normal(
+                        NormalDecl {
+                            decl_spec: DeclSpec {
+                                ty: Void,
+                                attrs: DeclAttr {
+                                    is_extern: false,
+                                    is_static: false,
+                                    is_thread_local: false,
                                 },
-                                6..9,
-                            ),
-                        ],
-                    },
-                ),
-                body: [],
-            },
+                            },
+                            init_declarators: [
+                                (
+                                    InitDecl {
+                                        declarator: Declarator {
+                                            decl: WithParams {
+                                                ident: (
+                                                    "uwu",
+                                                    6..9,
+                                                ),
+                                                params: [],
+                                            },
+                                            pointer: false,
+                                        },
+                                        init: None,
+                                    },
+                                    6..9,
+                                ),
+                            ],
+                        },
+                    ),
+                    body: [],
+                },
+            ),
+            1..14,
         ),
-        1..14,
-    ),
+    ],
 )

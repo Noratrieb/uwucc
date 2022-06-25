@@ -371,8 +371,18 @@ where
                 span.extend(span2),
             ))
         } else {
+            expect!(self, Tok::Punct(Punct::Semicolon));
             Ok((ExternalDecl::Decl(declaration), span))
         }
+    }
+
+    fn external_declarations(&mut self) -> Result<Vec<Spanned<ExternalDecl>>> {
+        let mut decls = Vec::new();
+        while self.peek_t().is_ok() {
+            let decl = self.external_declaration()?;
+            decls.push(decl);
+        }
+        Ok(decls)
     }
 
     fn function_param_declaration_list(&mut self) -> Result<FunctionParams> {

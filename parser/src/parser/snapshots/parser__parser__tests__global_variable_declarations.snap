@@ -1,0 +1,91 @@
+---
+source: parser/src/parser/tests.rs
+expression: parsed
+---
+Ok(
+    [
+        (
+            Decl(
+                Normal(
+                    NormalDecl {
+                        decl_spec: DeclSpec {
+                            ty: Int,
+                            attrs: DeclAttr {
+                                is_extern: false,
+                                is_static: false,
+                                is_thread_local: false,
+                            },
+                        },
+                        init_declarators: [
+                            (
+                                InitDecl {
+                                    declarator: Declarator {
+                                        decl: Ident(
+                                            (
+                                                "test",
+                                                5..9,
+                                            ),
+                                        ),
+                                        pointer: false,
+                                    },
+                                    init: None,
+                                },
+                                5..9,
+                            ),
+                        ],
+                    },
+                ),
+            ),
+            1..9,
+        ),
+        (
+            Decl(
+                Normal(
+                    NormalDecl {
+                        decl_spec: DeclSpec {
+                            ty: Double,
+                            attrs: DeclAttr {
+                                is_extern: false,
+                                is_static: false,
+                                is_thread_local: true,
+                            },
+                        },
+                        init_declarators: [
+                            (
+                                InitDecl {
+                                    declarator: Declarator {
+                                        decl: Ident(
+                                            (
+                                                "uwu",
+                                                32..35,
+                                            ),
+                                        ),
+                                        pointer: false,
+                                    },
+                                    init: None,
+                                },
+                                32..35,
+                            ),
+                            (
+                                InitDecl {
+                                    declarator: Declarator {
+                                        decl: Ident(
+                                            (
+                                                "owo",
+                                                37..40,
+                                            ),
+                                        ),
+                                        pointer: false,
+                                    },
+                                    init: None,
+                                },
+                                37..40,
+                            ),
+                        ],
+                    },
+                ),
+            ),
+            11..40,
+        ),
+    ],
+)
