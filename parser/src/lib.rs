@@ -8,6 +8,8 @@ mod parser;
 mod pre;
 mod token;
 
+pub type Spanned<T> = (T, Span);
+
 #[derive(PartialEq, Eq, Clone, Copy, Default)]
 pub struct Span {
     pub start: usize,
@@ -21,6 +23,16 @@ impl Span {
 
     pub fn extend(&self, rhs: Self) -> Self {
         Self::start_end(self.start, rhs.end)
+    }
+
+    pub fn extend_option(&self, rhs: Option<Self>) -> Self {
+        rhs.map(|s| self.extend(s)).unwrap_or(*self)
+    }
+
+    pub fn span_of_spanned_list<T>(list: &[Spanned<T>]) -> Option<Span> {
+        list.iter().fold(None, |old_span, &(_, span)| {
+            Some(old_span.map(|s| s.extend(span)).unwrap_or(span))
+        })
     }
 }
 

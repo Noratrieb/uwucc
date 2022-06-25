@@ -1,8 +1,6 @@
 use dbg_pls::DebugPls;
 
-use crate::Span;
-
-pub type Spanned<T> = (T, Span);
+use crate::{Span, Spanned};
 
 #[derive(Debug, DebugPls)]
 pub enum TypeSpecifier {
@@ -40,16 +38,21 @@ pub struct DeclSpec {
 }
 
 #[derive(Debug, DebugPls)]
-pub enum Declaration {
-    Normal(NormalDeclaration),
+pub enum Decl {
+    Normal(NormalDecl),
     StaticAssert,
 }
 
 #[derive(Debug, DebugPls)]
-pub struct NormalDeclaration {
-    pub decl_spec: DeclSpec,
+pub struct InitDecl {
     pub declarator: Declarator,
-    pub initializer: Option<()>,
+    pub init: Option<()>,
+}
+
+#[derive(Debug, DebugPls)]
+pub struct NormalDecl {
+    pub decl_spec: DeclSpec,
+    pub init_declarators: Vec<Spanned<InitDecl>>,
 }
 
 #[derive(Debug, DebugPls)]
@@ -57,7 +60,7 @@ pub enum DirectDeclarator {
     Ident(Ident),
     WithParams {
         ident: Ident,
-        params: Vec<NormalDeclaration>,
+        params: Vec<NormalDecl>,
     },
 }
 
@@ -74,15 +77,19 @@ pub struct FunctionParamDecl {
 }
 
 #[derive(Debug, DebugPls)]
-pub enum FunctionParameters {
+pub enum FunctionParams {
     Void(Span),
-    List(Vec<Spanned<NormalDeclaration>>),
+    List(Vec<Spanned<NormalDecl>>),
 }
 
 #[derive(Debug, DebugPls)]
-pub struct FunctionDefinition {
-    pub decl_spec: Spanned<DeclSpec>,
-    pub name: Ident,
-    pub parameter_list: FunctionParameters,
+pub struct FunctionDef {
+    pub declaration: Decl,
     pub body: Vec<()>,
+}
+
+#[derive(Debug, DebugPls)]
+pub enum ExternalDecl {
+    Decl(Decl),
+    FunctionDef(FunctionDef),
 }

@@ -4,27 +4,41 @@ expression: parsed
 ---
 Ok(
     (
-        FunctionDefinition {
-            decl_spec: (
-                DeclSpec {
-                    ty: Void,
-                    attrs: DeclAttr {
-                        is_extern: false,
-                        is_static: false,
-                        is_thread_local: false,
+        FunctionDef(
+            FunctionDef {
+                declaration: Normal(
+                    NormalDecl {
+                        decl_spec: DeclSpec {
+                            ty: Void,
+                            attrs: DeclAttr {
+                                is_extern: false,
+                                is_static: false,
+                                is_thread_local: false,
+                            },
+                        },
+                        init_declarators: [
+                            (
+                                InitDecl {
+                                    declarator: Declarator {
+                                        decl: WithParams {
+                                            ident: (
+                                                "uwu",
+                                                6..9,
+                                            ),
+                                            params: [],
+                                        },
+                                        pointer: false,
+                                    },
+                                    init: None,
+                                },
+                                6..9,
+                            ),
+                        ],
                     },
-                },
-                1..5,
-            ),
-            declarator: (
-                "uwu",
-                6..9,
-            ),
-            declaration_list: List(
-                [],
-            ),
-            body: [],
-        },
+                ),
+                body: [],
+            },
+        ),
         1..14,
     ),
 )

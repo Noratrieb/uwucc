@@ -2,12 +2,12 @@ use peekmore::PeekMoreIterator;
 
 use crate::{
     ast::{
-        DeclAttr, DeclSpec, Declaration, Declarator, DirectDeclarator, FunctionDefinition,
-        FunctionParamDecl, FunctionParameters, Ident, Spanned, TypeSpecifier,
+        Decl, DeclAttr, DeclSpec, Declarator, DirectDeclarator, ExternalDecl, FunctionDef,
+        FunctionParams, Ident, InitDecl, NormalDecl, TypeSpecifier,
     },
     pre::Punctuator as Punct,
     token::{Keyword as Kw, Token as Tok},
-    Span,
+    Span, Spanned,
 };
 
 #[derive(Debug)]
@@ -89,6 +89,14 @@ fn is_tok_start_of_ty(tok: &Tok<'_>) -> bool {
     }
 }
 
+/// Can be called for the start of a sequence of tokens that could be a type.
+fn is_tok_start_of_declarator(tok: &Tok<'_>) -> bool {
+    matches!(
+        tok,
+        Tok::Ident(_) | Tok::Punct(Punct::ParenOpen | Punct::Asterisk)
+    )
+}
+
 impl<'src, I> Parser<'src, I>
 where
     I: Iterator<Item = (Tok<'src>, Span)>,
@@ -130,6 +138,17 @@ where
         }
     }
 
+    fn is_peek_tok_start_of_declarator(&mut self) -> bool {
+        match self.peek_t() {
+            Ok((tok, _)) => is_tok_start_of_declarator(tok),
+            Err(_) => false,
+        }
+    }
+
+    fn is_peek_comma(&mut self) -> bool {
+        matches!(self.peek_t(), Ok((Tok::Punct(Punct::Comma), _)))
+    }
+
     // -----------------------
     // Declarations
     // -----------------------
@@ -137,25 +156,59 @@ where
     /// (6.7) declaration:
     ///     declaration-specifiers init-declarator-listopt ;
     ///     static_assert-declaration
-    fn declaration(&mut self) -> Result<Spanned<Declaration>> {
-        if let &(tok @ Tok::Kw(Kw::StaticAssert), span) = self.peek_t()? {
-            self.next_t()?;
+    fn declaration(&mut self) -> Result<Spanned<Decl>> {
+        if let Some((tok, span)) = eat!(self, Tok::Kw(Kw::StaticAssert)) {
             return Err(ParserError::unsupported(span, &tok));
         }
 
-        // first, some declaration-specifiers
-        let _decl_spec = self.declaration_specifiers()?;
-        // then (optionally), a declarator
-        // (6.7.6) declarator:
-        //      pointer.opt direct-declarator
-        if let &(tok @ Tok::Punct(Punct::Asterisk), span) = self.peek_t()? {
-            self.next_t()?;
-            return Err(ParserError::unsupported(span, &tok));
+        let (decl_spec, span) = self.declaration_specifiers()?;
+
+        let init_declarators = self.init_declarator_list()?;
+        let init_declarators_span = Span::span_of_spanned_list(&init_declarators);
+
+        let span = span.extend_option(init_declarators_span);
+
+        Ok((
+            Decl::Normal(NormalDecl {
+                decl_spec,
+                init_declarators,
+            }),
+            span,
+        ))
+    }
+
+    /// init-declarator-list:
+    ///     init-declarator
+    ///     init-declarator-list , init-declarator
+    ///
+    /// init-declarator:
+    ///     declarator
+    ///     declarator = initializer
+    fn init_declarator_list(&mut self) -> Result<Vec<Spanned<InitDecl>>> {
+        let mut init_decls = Vec::new();
+        let mut first = true;
+        loop {
+            println!("LOOOOP");
+            if !self.is_peek_tok_start_of_declarator() && !self.is_peek_comma() {
+                break;
+            }
+            if !first {
+                expect!(self, Tok::Punct(Punct::Comma));
+            }
+            first = false;
+
+            let (declarator, span) = self.declarator()?;
+            if let Some((token, span)) = eat!(self, Tok::Punct(Punct::Eq)) {
+                return Err(ParserError::unsupported(span, &token));
+            }
+            let init_decl = InitDecl {
+                declarator,
+                init: None,
+            };
+            init_decls.push((init_decl, span));
         }
 
-        // then (optionally), an initializer
-
-        todo!("this doesn't work like this")
+        Ok(init_decls)
     }
 
     /// (6.7) declaration-specifiers:
@@ -282,7 +335,15 @@ where
         let (ident, span) = self.ident()?;
 
         if (eat!(self, Tok::Punct(Punct::ParenOpen))).is_some() {
-            todo!("haha, no parentheses for you!")
+            // nothing in the params supported yet.
+            expect!(self, Tok::Punct(Punct::ParenClose));
+            return Ok((
+                DirectDeclarator::WithParams {
+                    ident: (ident, span),
+                    params: Vec::new(),
+                },
+                span,
+            ));
         }
 
         Ok((DirectDeclarator::Ident((ident, span)), span))
@@ -295,58 +356,26 @@ where
     /// (6.9) external-declaration:
     ///     function-definition
     ///     declaration
-    fn external_declaration(&mut self) -> Result<Spanned<FunctionDefinition>> {
-        if let Some((token, span)) = eat!(self, Tok::Kw(Kw::StaticAssert)) {
-            return Err(ParserError::unsupported(span, &token));
+    fn external_declaration(&mut self) -> Result<Spanned<ExternalDecl>> {
+        let (declaration, span) = self.declaration()?;
+
+        // the declaration might be a function definition
+        if eat!(self, Tok::Punct(Punct::BraceOpen)).is_some() {
+            let span2 = expect!(self, Tok::Punct(Punct::BraceClose));
+
+            Ok((
+                ExternalDecl::FunctionDef(FunctionDef {
+                    declaration,
+                    body: Vec::new(),
+                }),
+                span.extend(span2),
+            ))
+        } else {
+            Ok((ExternalDecl::Decl(declaration), span))
         }
-
-        let decl_spec = self.declaration_specifiers()?;
-
-        // TODO: We just assume that it's a function, that's terrible!
-
-        self.function_definition(decl_spec)
     }
 
-    /// (6.9.1) function-definition:
-    ///     declaration-specifiers declarator declaration-list.opt compound-statement
-    /// IMPORTANT TODO DO NOT FORGET THIS IS MISSION CRITICAL
-    /// THERE ARE RULES FOR parameter-type-list
-    /// WE ARE IN direct-declarator HERE
-    /// USE THIS
-    /// DO NOT DO THIS WRONGLY
-    /// C IS ONLY HALF HAS SHITTY AS IT SOUNDS
-    /// OK BUT HALF IS STILL A LOT
-    fn function_definition(
-        &mut self,
-        decl_spec: Spanned<DeclSpec>,
-    ) -> Result<Spanned<FunctionDefinition>> {
-        let _oh_fuck = self.declarator()?;
-
-        let declarator = self.ident()?;
-
-        let decl_spec_span = decl_spec.1;
-
-        expect!(self, Tok::Punct(Punct::ParenOpen));
-
-        let declaration_list = self.function_param_declaration_list()?;
-
-        expect!(self, Tok::Punct(Punct::ParenClose));
-
-        expect!(self, Tok::Punct(Punct::BraceOpen));
-
-        let def = FunctionDefinition {
-            decl_spec,
-            name: declarator,
-            parameter_list: declaration_list,
-            body: Vec::new(),
-        };
-
-        let last = expect!(self, Tok::Punct(Punct::BraceClose));
-
-        Ok((def, decl_spec_span.extend(last)))
-    }
-
-    fn function_param_declaration_list(&mut self) -> Result<FunctionParameters> {
+    fn function_param_declaration_list(&mut self) -> Result<FunctionParams> {
         // If the declarator includes a parameter type list, the declaration of each parameter shall
         // include an identifier, except for the special case of a parameter list consisting of a single
         // parameter of type void, in which case there shall not be an identifier. No declaration list
@@ -355,36 +384,11 @@ where
             if let (Tok::Punct(Punct::ParenClose), _) = self.peek_t_n(1)? {
                 self.next_t()?;
                 self.next_t()?;
-                return Ok(FunctionParameters::Void(span));
+                return Ok(FunctionParams::Void(span));
             }
         }
 
-        let mut params = Vec::new();
-
-        if self.is_peek_tok_start_of_ty() {
-            let (decl_spec, span1) = self.declaration_specifiers()?;
-            let (declarator, span2) = self.declarator()?;
-            let param = FunctionParamDecl {
-                decl_spec,
-                declarator,
-            };
-
-            params.push((param, span1.extend(span2)));
-        }
-
-        while self.is_peek_tok_start_of_ty() {
-            expect!(self, Tok::Punct(Punct::Comma));
-            let (decl_spec, span1) = self.declaration_specifiers()?;
-            let (declarator, span2) = self.declarator()?;
-            let param = FunctionParamDecl {
-                decl_spec,
-                declarator,
-            };
-
-            params.push((param, span1.extend(span2)));
-        }
-
-        Ok(FunctionParameters::List(todo!()))
+        todo!()
     }
 }
 
