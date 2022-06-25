@@ -14,7 +14,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub enum Token<'src> {
     Kw(Keyword),
-    Identifier(&'src str),
+    Ident(&'src str),
     Constant(Constant),
     StringLiteral(&'src str),
     Punct(Punctuator),
@@ -140,7 +140,7 @@ pub fn pre_tokens_to_tokens<'src>(
             PToken::HeaderName(_) => todo!("header names aren't real, wake up"),
             PToken::Identifier(ident) => match ident_to_keyword(ident) {
                 Some(keyword) => Token::Kw(keyword),
-                None => Token::Identifier(ident),
+                None => Token::Ident(ident),
             },
             PToken::PpNumber(number) => pp_number_to_constant(number)
                 .map(Token::Constant)
@@ -159,7 +159,7 @@ impl Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Token::Kw(kw) => Display::fmt(kw, f),
-            Token::Identifier(ident) => Display::fmt(ident, f),
+            Token::Ident(ident) => Display::fmt(ident, f),
             Token::Constant(c) => Display::fmt(c, f),
             Token::StringLiteral(str) => write!(f, "\"{}\"", str),
             Token::Punct(p) => Display::fmt(p, f),

@@ -24,6 +24,8 @@ pub enum TypeSpecifier {
     // typedef-name
 }
 
+pub type Ident = Spanned<String>;
+
 #[derive(Debug, Default, DebugPls)]
 pub struct DeclAttr {
     pub is_extern: bool,
@@ -39,18 +41,29 @@ pub struct DeclSpec {
 
 #[derive(Debug, DebugPls)]
 pub enum Declaration {
-    Normal {
-        decl_spec: DeclSpec,
-        name: Option<String>,
-        initializer: Option<()>,
-        pointer: bool,
-    },
+    Normal(NormalDeclaration),
     StaticAssert,
 }
 
 #[derive(Debug, DebugPls)]
+pub struct NormalDeclaration {
+    pub decl_spec: DeclSpec,
+    pub declarator: Declarator,
+    pub initializer: Option<()>,
+}
+
+#[derive(Debug, DebugPls)]
+pub enum DirectDeclarator {
+    Ident(Ident),
+    WithParams {
+        ident: Ident,
+        params: Vec<NormalDeclaration>,
+    },
+}
+
+#[derive(Debug, DebugPls)]
 pub struct Declarator {
-    pub identifier: String,
+    pub decl: DirectDeclarator,
     pub pointer: bool,
 }
 
@@ -63,13 +76,13 @@ pub struct FunctionParamDecl {
 #[derive(Debug, DebugPls)]
 pub enum FunctionParameters {
     Void(Span),
-    List(Vec<Spanned<FunctionParamDecl>>),
+    List(Vec<Spanned<NormalDeclaration>>),
 }
 
 #[derive(Debug, DebugPls)]
 pub struct FunctionDefinition {
     pub decl_spec: Spanned<DeclSpec>,
-    pub declarator: Spanned<String>,
-    pub declaration_list: FunctionParameters,
+    pub name: Ident,
+    pub parameter_list: FunctionParameters,
     pub body: Vec<()>,
 }

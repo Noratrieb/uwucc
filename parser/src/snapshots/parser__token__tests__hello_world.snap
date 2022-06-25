@@ -10,7 +10,7 @@ expression: tokens
         1..4,
     ),
     (
-        Identifier(
+        Ident(
             "main",
         ),
         5..9,
@@ -34,7 +34,7 @@ expression: tokens
         12..13,
     ),
     (
-        Identifier(
+        Ident(
             "puts",
         ),
         18..22,

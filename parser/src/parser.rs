@@ -2,8 +2,8 @@ use peekmore::PeekMoreIterator;
 
 use crate::{
     ast::{
-        DeclAttr, DeclSpec, Declaration, Declarator, FunctionDefinition, FunctionParamDecl,
-        FunctionParameters, Spanned, TypeSpecifier,
+        DeclAttr, DeclSpec, Declaration, Declarator, DirectDeclarator, FunctionDefinition,
+        FunctionParamDecl, FunctionParameters, Ident, Spanned, TypeSpecifier,
     },
     pre::Punctuator as Punct,
     token::{Keyword as Kw, Token as Tok},
@@ -56,6 +56,15 @@ macro_rules! expect {
     };
 }
 
+macro_rules! eat {
+    ($self:ident, $pat:pat) => {
+        match $self.peek_t() {
+            Ok(($pat, _)) => Some($self.next_t()?),
+            _ => None,
+        }
+    };
+}
+
 /// Can be called for the start of a sequence of tokens that could be a type.
 #[rustfmt::skip]
 fn is_tok_start_of_ty(tok: &Tok<'_>) -> bool {
@@ -75,7 +84,7 @@ fn is_tok_start_of_ty(tok: &Tok<'_>) -> bool {
             // function specifiers
             | Kw::Inline | Kw::Noreturn
         ) => true,
-        Tok::Identifier(_) => false, // TODO: lookup typedefs!
+        Tok::Ident(_) => false, // TODO: lookup typedefs!
         _ => false,
     }
 }
@@ -104,9 +113,9 @@ where
         self.lex.peek_nth(n).ok_or_else(ParserError::eof)
     }
 
-    fn ident(&mut self) -> Result<Spanned<String>> {
+    fn ident(&mut self) -> Result<Ident> {
         match self.next_t()? {
-            (Tok::Identifier(ident), span) => Ok((ident.to_string(), span)),
+            (Tok::Ident(ident), span) => Ok((ident.to_string(), span)),
             (tok, span) => Err(ParserError::new(
                 span,
                 format!("expected identifier, found `{tok}`"),
@@ -232,7 +241,48 @@ where
 
     /// (6.7.6) declarator:
     ///     pointer.opt direct-declarator
+    ///
+    /// It's only really known after the parsing of a declarator which kind of declaration we are
+    /// facing. For example: `int uwu` vs `int uwu()`. The parentheses indicate a function
+    /// declaration. Therefore, we have no idea what we're parsing before entering this function.
     fn declarator(&mut self) -> Result<Spanned<Declarator>> {
+        if let Some((_, span)) = eat!(self, Tok::Punct(Punct::Asterisk)) {
+            let (decl, span2) = self.direct_declarator()?;
+
+            Ok((
+                Declarator {
+                    decl,
+                    pointer: true,
+                },
+                span.extend(span2),
+            ))
+        } else {
+            let (decl, span) = self.direct_declarator()?;
+
+            Ok((
+                Declarator {
+                    decl,
+                    pointer: false,
+                },
+                span,
+            ))
+        }
+    }
+
+    /// direct-declarator:
+    ///     identifier
+    ///     ( declarator )
+    ///     direct-declarator \[ type-qualifier-listopt assignment-expressionopt ]
+    ///     direct-declarator \[ static type-qualifier-listopt assignment-expression ]
+    ///     direct-declarator \[ type-qualifier-list static assignment-expression ]
+    ///     direct-declarator \[ type-qualifier-listopt * ]
+    ///     direct-declarator ( parameter-type-list )
+    ///     direct-declarator ( identifier-listopt )
+    fn direct_declarator(&mut self) -> Result<Spanned<DirectDeclarator>> {
+        if let Some((Tok::Ident(name), span)) = eat!(self, Tok::Ident(_)) {
+            return Ok((DirectDeclarator::Ident((name.to_owned(), span)), span));
+        }
+
         todo!()
     }
 
@@ -244,9 +294,8 @@ where
     ///     function-definition
     ///     declaration
     fn external_declaration(&mut self) -> Result<Spanned<FunctionDefinition>> {
-        let (next, span) = self.peek_t()?;
-        if let Tok::Kw(Kw::StaticAssert) = next {
-            return Err(ParserError::unsupported(*span, next));
+        if let Some((token, span)) = eat!(self, Tok::Kw(Kw::StaticAssert)) {
+            return Err(ParserError::unsupported(span, &token));
         }
 
         let decl_spec = self.declaration_specifiers()?;
@@ -269,6 +318,8 @@ where
         &mut self,
         decl_spec: Spanned<DeclSpec>,
     ) -> Result<Spanned<FunctionDefinition>> {
+        let _oh_fuck = self.declarator()?;
+
         let declarator = self.ident()?;
 
         let decl_spec_span = decl_spec.1;
@@ -283,8 +334,8 @@ where
 
         let def = FunctionDefinition {
             decl_spec,
-            declarator,
-            declaration_list,
+            name: declarator,
+            parameter_list: declaration_list,
             body: Vec::new(),
         };
 
@@ -300,6 +351,7 @@ where
         // shall follow.
         if let &(Tok::Kw(Kw::Void), span) = self.peek_t()? {
             if let (Tok::Punct(Punct::ParenClose), _) = self.peek_t_n(1)? {
+                self.next_t()?;
                 self.next_t()?;
                 return Ok(FunctionParameters::Void(span));
             }
@@ -328,10 +380,9 @@ where
             };
 
             params.push((param, span1.extend(span2)));
-
         }
 
-        Ok(FunctionParameters::List(params))
+        Ok(FunctionParameters::List(todo!()))
     }
 }
 
