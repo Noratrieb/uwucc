@@ -5,6 +5,60 @@ use dbg_pls::DebugPls;
 
 use crate::Spanned;
 
+//
+// --- Expr
+//
+
+#[derive(Debug, DebugPls)]
+pub enum Atom {
+    Ident(String),
+    Int(i128),
+    Float(f64),
+    String(String),
+    Char(u8),
+}
+
+#[derive(Debug, DebugPls)]
+pub enum UnaryOp {
+    AddrOf,
+    Deref,
+    Plus,
+    Minus,
+    Tilde,
+    Bang,
+}
+
+#[derive(Debug, DebugPls)]
+pub enum BinaryOp {
+    Add,
+    Sub,
+    Comma,
+}
+
+#[derive(Debug, DebugPls)]
+pub struct ExprUnary {
+    pub rhs: Box<Spanned<Expr>>,
+    pub op: UnaryOp,
+}
+
+#[derive(Debug, DebugPls)]
+pub struct ExprBinary {
+    pub lhs: Box<Spanned<Expr>>,
+    pub rhs: Box<Spanned<Expr>>,
+    pub op: BinaryOp,
+}
+
+#[derive(Debug, DebugPls)]
+pub enum Expr {
+    Atom(Atom),
+    Unary(ExprUnary),
+    Binary(ExprBinary),
+}
+
+//
+// --- Types and decls and garbage whatever
+//
+
 #[derive(Debug, DebugPls)]
 pub enum TypeSpecifier {
     Void,
@@ -59,7 +113,7 @@ pub enum Decl {
 #[derive(Debug, DebugPls)]
 pub struct InitDecl {
     pub declarator: Declarator,
-    pub init: Option<()>,
+    pub init: Option<Expr>,
 }
 
 #[derive(Debug, DebugPls)]
@@ -92,7 +146,7 @@ pub struct Declarator {
 #[derive(Debug, DebugPls)]
 pub struct FunctionDef {
     pub declaration: Decl,
-    pub body: Vec<()>,
+    pub body: Vec<Expr>,
 }
 
 #[derive(Debug, DebugPls)]

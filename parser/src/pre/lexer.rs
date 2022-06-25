@@ -55,6 +55,8 @@ pub enum Punctuator {
     Tilde,
     /// ! 🤯
     Bang,
+    /// /
+    Slash,
     //// %
     Percent,
     /// <<
@@ -138,6 +140,7 @@ impl Display for Punctuator {
             Punctuator::Minus => f.write_str("-"),
             Punctuator::Tilde => f.write_str("~"),
             Punctuator::Bang => f.write_str("!"),
+            Punctuator::Slash => f.write_str("/"),
             Punctuator::Percent => f.write_str("%"),
             Punctuator::LeftLeftChevron => f.write_str("<<"),
             Punctuator::RightRightChevron => f.write_str(">>"),
@@ -383,6 +386,7 @@ where
                 (b'-', _, _) => break (TokP(Punctuator::Minus), start_span),
                 (b'~', _, _) => break (TokP(Punctuator::Tilde), start_span),
                 (b'!', _, _) => break (TokP(Punctuator::Bang), start_span),
+                (b'/', _, _) => break (TokP(Punctuator::Slash), start_span),
                 (b'%', _, _) => break (TokP(Punctuator::Percent), start_span),
                 (b'<', _, _) => break (TokP(Punctuator::LeftChevron), start_span),
                 (b'>', _, _) => break (TokP(Punctuator::RightChevron), start_span),

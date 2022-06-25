@@ -10,6 +10,8 @@ use crate::{
     Span, Spanned,
 };
 
+mod expr;
+
 #[derive(Debug)]
 pub struct ParserError {
     span: Span,
