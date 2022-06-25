@@ -3,6 +3,8 @@
 
 use std::fmt::Debug;
 
+use crate::token::Token;
+
 mod ast;
 mod parser;
 mod pre;
@@ -48,6 +50,18 @@ impl Debug for Span {
     }
 }
 
+fn lex_and_pre(src: &str) -> impl Iterator<Item = (Token<'_>, Span)> + '_ {
+    let pre_tokens = pre::preprocess_tokens(src);
+    token::pre_tokens_to_tokens(pre_tokens)
+}
+
 pub fn parse_file(src: &str) {
-    println!("{src}");
+    let lexer = lex_and_pre(src);
+    let declarations = parser::parse_declarations(lexer);
+    match declarations {
+        Ok(declarations) => {
+            dbg_pls::color!(declarations);
+        }
+        Err(err) => eprintln!("error :(\n{:#?}", err),
+    }
 }

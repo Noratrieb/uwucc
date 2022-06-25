@@ -11,7 +11,7 @@ Ok(
                         NormalDecl {
                             decl_spec: DeclSpec {
                                 ty: Int,
-                                attrs: {},
+                                attrs: (empty),
                             },
                             init_declarators: [
                                 (
@@ -27,7 +27,7 @@ Ok(
                                                         decl_spec: (
                                                             DeclSpec {
                                                                 ty: Long,
-                                                                attrs: {},
+                                                                attrs: (empty),
                                                             },
                                                             9..13,
                                                         ),
@@ -48,7 +48,7 @@ Ok(
                                                         decl_spec: (
                                                             DeclSpec {
                                                                 ty: Int,
-                                                                attrs: {},
+                                                                attrs: (empty),
                                                             },
                                                             19..22,
                                                         ),

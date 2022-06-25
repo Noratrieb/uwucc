@@ -10,7 +10,7 @@ Ok(
                     NormalDecl {
                         decl_spec: DeclSpec {
                             ty: Int,
-                            attrs: {},
+                            attrs: (empty),
                         },
                         init_declarators: [
                             (
@@ -40,9 +40,7 @@ Ok(
                     NormalDecl {
                         decl_spec: DeclSpec {
                             ty: Double,
-                            attrs: {
-                                "thread_local",
-                            },
+                            attrs: THREAD_LOCAL,
                         },
                         init_declarators: [
                             (
@@ -87,7 +85,7 @@ Ok(
                     NormalDecl {
                         decl_spec: DeclSpec {
                             ty: Int,
-                            attrs: {},
+                            attrs: (empty),
                         },
                         init_declarators: [
                             (

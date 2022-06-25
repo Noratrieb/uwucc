@@ -1,5 +1,6 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 
+use bitflags::bitflags;
 use dbg_pls::DebugPls;
 
 use crate::Spanned;
@@ -26,42 +27,20 @@ pub enum TypeSpecifier {
 
 pub type Ident = Spanned<String>;
 
-#[derive(Default)]
-pub struct DeclAttr {
-    pub is_extern: bool,
-    pub is_static: bool,
-    pub is_thread_local: bool,
-}
-
-impl Debug for DeclAttr {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut d = f.debug_set();
-        if self.is_extern {
-            d.entry(&"extern");
-        }
-        if self.is_static {
-            d.entry(&"static");
-        }
-        if self.is_thread_local {
-            d.entry(&"thread_local");
-        }
-        d.finish()
+bitflags! {
+    pub struct DeclAttr: u8 {
+        const EXTERN = 0b00000001;
+        const STATIC = 0b00000010;
+        const THREAD_LOCAL = 0b00000100;
     }
 }
 
 impl DebugPls for DeclAttr {
     fn fmt(&self, f: dbg_pls::Formatter<'_>) {
-        let mut d = f.debug_set();
-        if self.is_extern {
-            d = d.entry(&"extern");
-        }
-        if self.is_static {
-            d = d.entry(&"static");
-        }
-        if self.is_thread_local {
-            d = d.entry(&"thread_local");
-        }
-        d.finish();
+        use std::fmt::Write;
+        let mut string = String::new();
+        write!(string, "{:?}", self).unwrap();
+        DebugPls::fmt(&string, f);
     }
 }
 

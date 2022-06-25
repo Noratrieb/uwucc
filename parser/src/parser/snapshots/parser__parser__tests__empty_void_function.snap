@@ -11,7 +11,7 @@ Ok(
                         NormalDecl {
                             decl_spec: DeclSpec {
                                 ty: Void,
-                                attrs: {},
+                                attrs: (empty),
                             },
                             init_declarators: [
                                 (

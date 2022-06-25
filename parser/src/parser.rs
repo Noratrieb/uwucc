@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-struct ParserError {
+pub struct ParserError {
     span: Span,
     message: String,
 }
@@ -214,7 +214,7 @@ where
     ///   function-specifier declaration-specifiers.opt
     ///   alignment-specifier declaration-specifiers.opt
     fn decl_specifiers(&mut self) -> Result<Spanned<DeclSpec>> {
-        let mut decl_attr = DeclAttr::default();
+        let mut decl_attr = DeclAttr::empty();
         let &(_, initial_span) = self.peek_t()?;
         let (ty, span) = loop {
             match self.peek_t()?.0 {
@@ -224,15 +224,15 @@ where
                 }
                 Tok::Kw(Kw::Extern) => {
                     self.next_t()?;
-                    decl_attr.is_extern = true;
+                    decl_attr |= DeclAttr::EXTERN;
                 }
                 Tok::Kw(Kw::Static) => {
                     self.next_t()?;
-                    decl_attr.is_static = true;
+                    decl_attr |= DeclAttr::STATIC;
                 }
                 Tok::Kw(Kw::ThreadLocal) => {
                     self.next_t()?;
-                    decl_attr.is_thread_local = true;
+                    decl_attr |= DeclAttr::THREAD_LOCAL;
                 }
                 // (6.7.3) type-qualifier:
                 Tok::Kw(Kw::Const | Kw::Restrict | Kw::Volatile | Kw::Atomic) => {
@@ -404,6 +404,18 @@ where
         }
         Ok(decls)
     }
+}
+
+pub fn parse_declarations<'src>(
+    src: impl Iterator<Item = (Tok<'src>, Span)>,
+) -> Result<Vec<Spanned<ExternalDecl>>> {
+    use peekmore::PeekMore;
+
+    let mut parser = Parser {
+        lex: src.peekmore(),
+    };
+
+    parser.external_declarations()
 }
 
 #[cfg(test)]
