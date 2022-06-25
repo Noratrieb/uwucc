@@ -11,10 +11,9 @@ Ok(
                         NormalDecl {
                             decl_spec: DeclSpec {
                                 ty: Int,
-                                attrs: DeclAttr {
-                                    is_extern: true,
-                                    is_static: false,
-                                    is_thread_local: true,
+                                attrs: {
+                                    "extern",
+                                    "thread_local",
                                 },
                             },
                             init_declarators: [

@@ -10,11 +10,7 @@ Ok(
                     NormalDecl {
                         decl_spec: DeclSpec {
                             ty: Int,
-                            attrs: DeclAttr {
-                                is_extern: false,
-                                is_static: false,
-                                is_thread_local: false,
-                            },
+                            attrs: {},
                         },
                         init_declarators: [
                             (
@@ -44,10 +40,8 @@ Ok(
                     NormalDecl {
                         decl_spec: DeclSpec {
                             ty: Double,
-                            attrs: DeclAttr {
-                                is_extern: false,
-                                is_static: false,
-                                is_thread_local: true,
+                            attrs: {
+                                "thread_local",
                             },
                         },
                         init_declarators: [
@@ -86,6 +80,37 @@ Ok(
                 ),
             ),
             11..40,
+        ),
+        (
+            Decl(
+                Normal(
+                    NormalDecl {
+                        decl_spec: DeclSpec {
+                            ty: Int,
+                            attrs: {},
+                        },
+                        init_declarators: [
+                            (
+                                InitDecl {
+                                    declarator: Declarator {
+                                        decl: WithParams {
+                                            ident: (
+                                                "function",
+                                                68..76,
+                                            ),
+                                            params: [],
+                                        },
+                                        pointer: false,
+                                    },
+                                    init: None,
+                                },
+                                68..76,
+                            ),
+                        ],
+                    },
+                ),
+            ),
+            64..76,
         ),
     ],
 )

@@ -1,6 +1,8 @@
+use std::fmt::{Debug, Formatter};
+
 use dbg_pls::DebugPls;
 
-use crate::{Span, Spanned};
+use crate::Spanned;
 
 #[derive(Debug, DebugPls)]
 pub enum TypeSpecifier {
@@ -24,11 +26,43 @@ pub enum TypeSpecifier {
 
 pub type Ident = Spanned<String>;
 
-#[derive(Debug, Default, DebugPls)]
+#[derive(Default)]
 pub struct DeclAttr {
     pub is_extern: bool,
     pub is_static: bool,
     pub is_thread_local: bool,
+}
+
+impl Debug for DeclAttr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut d = f.debug_set();
+        if self.is_extern {
+            d.entry(&"extern");
+        }
+        if self.is_static {
+            d.entry(&"static");
+        }
+        if self.is_thread_local {
+            d.entry(&"thread_local");
+        }
+        d.finish()
+    }
+}
+
+impl DebugPls for DeclAttr {
+    fn fmt(&self, f: dbg_pls::Formatter<'_>) {
+        let mut d = f.debug_set();
+        if self.is_extern {
+            d = d.entry(&"extern");
+        }
+        if self.is_static {
+            d = d.entry(&"static");
+        }
+        if self.is_thread_local {
+            d = d.entry(&"thread_local");
+        }
+        d.finish();
+    }
 }
 
 #[derive(Debug, DebugPls)]
@@ -56,11 +90,17 @@ pub struct NormalDecl {
 }
 
 #[derive(Debug, DebugPls)]
+pub struct FunctionParamDecl {
+    pub decl_spec: Spanned<DeclSpec>,
+    pub declarator: Spanned<Declarator>,
+}
+
+#[derive(Debug, DebugPls)]
 pub enum DirectDeclarator {
     Ident(Ident),
     WithParams {
         ident: Ident,
-        params: Vec<NormalDecl>,
+        params: Vec<FunctionParamDecl>,
     },
 }
 
@@ -68,18 +108,6 @@ pub enum DirectDeclarator {
 pub struct Declarator {
     pub decl: DirectDeclarator,
     pub pointer: bool,
-}
-
-#[derive(Debug, DebugPls)]
-pub struct FunctionParamDecl {
-    pub decl_spec: DeclSpec,
-    pub declarator: Declarator,
-}
-
-#[derive(Debug, DebugPls)]
-pub enum FunctionParams {
-    Void(Span),
-    List(Vec<Spanned<NormalDecl>>),
 }
 
 #[derive(Debug, DebugPls)]

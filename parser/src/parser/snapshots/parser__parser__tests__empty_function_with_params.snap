@@ -1,0 +1,85 @@
+---
+source: parser/src/parser/tests.rs
+expression: parsed
+---
+Ok(
+    [
+        (
+            FunctionDef(
+                FunctionDef {
+                    declaration: Normal(
+                        NormalDecl {
+                            decl_spec: DeclSpec {
+                                ty: Int,
+                                attrs: {},
+                            },
+                            init_declarators: [
+                                (
+                                    InitDecl {
+                                        declarator: Declarator {
+                                            decl: WithParams {
+                                                ident: (
+                                                    "uwu",
+                                                    5..8,
+                                                ),
+                                                params: [
+                                                    FunctionParamDecl {
+                                                        decl_spec: (
+                                                            DeclSpec {
+                                                                ty: Long,
+                                                                attrs: {},
+                                                            },
+                                                            9..13,
+                                                        ),
+                                                        declarator: (
+                                                            Declarator {
+                                                                decl: Ident(
+                                                                    (
+                                                                        "owo",
+                                                                        14..17,
+                                                                    ),
+                                                                ),
+                                                                pointer: false,
+                                                            },
+                                                            14..17,
+                                                        ),
+                                                    },
+                                                    FunctionParamDecl {
+                                                        decl_spec: (
+                                                            DeclSpec {
+                                                                ty: Int,
+                                                                attrs: {},
+                                                            },
+                                                            19..22,
+                                                        ),
+                                                        declarator: (
+                                                            Declarator {
+                                                                decl: Ident(
+                                                                    (
+                                                                        "qwq",
+                                                                        23..26,
+                                                                    ),
+                                                                ),
+                                                                pointer: false,
+                                                            },
+                                                            23..26,
+                                                        ),
+                                                    },
+                                                ],
+                                            },
+                                            pointer: false,
+                                        },
+                                        init: None,
+                                    },
+                                    5..8,
+                                ),
+                            ],
+                        },
+                    ),
+                    body: [],
+                },
+            ),
+            1..30,
+        ),
+    ],
+)

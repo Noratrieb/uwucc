@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use super::{Parser, Tok};
 use crate::Span;
 
-fn lex_and_pre<'src>(src: &'src str) -> impl Iterator<Item = (Tok<'src>, Span)> + 'src {
+fn lex_and_pre(src: &str) -> impl Iterator<Item = (Tok<'_>, Span)> + '_ {
     let pre_tokens = crate::pre::preprocess_tokens(src);
     crate::token::pre_tokens_to_tokens(pre_tokens)
 }
@@ -28,38 +28,40 @@ macro_rules! parse_test {
 
 #[test]
 fn empty_void_function() {
-    let src = r#"
+    parse_test!(
+        r#"
 void uwu() {}
-    "#;
-
-    parse_test!(src);
+    "#
+    );
 }
 
 #[test]
 fn empty_funky_attributes_no_params_function() {
-    let src = r#"
+    parse_test!(
+        r#"
 extern volatile _Thread_local int uwu() {}
-    "#;
-
-    parse_test!(src);
+    "#
+    );
 }
 
 #[test]
-#[ignore = "fix declarator mess"]
 fn empty_function_with_params() {
-    let src = r#"
-int uwu(long owo, unsigned qwq) {}
-    "#;
-
-    parse_test!(src);
+    parse_test!(
+        r#"
+int uwu(long owo, int qwq) {}
+    "#
+    );
 }
 
 #[test]
 fn global_variable_declarations() {
-    let src = r#"
+    parse_test!(
+        r#"
 int test;
 _Thread_local double uwu, owo;
-    "#;
 
-    parse_test!(src);
+// oh no, a function
+int function();
+    "#
+    );
 }

@@ -3,7 +3,7 @@ use peekmore::PeekMoreIterator;
 use crate::{
     ast::{
         Decl, DeclAttr, DeclSpec, Declarator, DirectDeclarator, ExternalDecl, FunctionDef,
-        FunctionParams, Ident, InitDecl, NormalDecl, TypeSpecifier,
+        FunctionParamDecl, Ident, InitDecl, NormalDecl, TypeSpecifier,
     },
     pre::Punctuator as Punct,
     token::{Keyword as Kw, Token as Tok},
@@ -154,14 +154,14 @@ where
     // -----------------------
 
     /// (6.7) declaration:
-    ///     declaration-specifiers init-declarator-listopt ;
+    ///     declaration-specifiers init-declarator-list.opt ;
     ///     static_assert-declaration
     fn declaration(&mut self) -> Result<Spanned<Decl>> {
         if let Some((tok, span)) = eat!(self, Tok::Kw(Kw::StaticAssert)) {
             return Err(ParserError::unsupported(span, &tok));
         }
 
-        let (decl_spec, span) = self.declaration_specifiers()?;
+        let (decl_spec, span) = self.decl_specifiers()?;
 
         let init_declarators = self.init_declarator_list()?;
         let init_declarators_span = Span::span_of_spanned_list(&init_declarators);
@@ -187,11 +187,7 @@ where
     fn init_declarator_list(&mut self) -> Result<Vec<Spanned<InitDecl>>> {
         let mut init_decls = Vec::new();
         let mut first = true;
-        loop {
-            println!("LOOOOP");
-            if !self.is_peek_tok_start_of_declarator() && !self.is_peek_comma() {
-                break;
-            }
+        while self.is_peek_tok_start_of_declarator() || self.is_peek_comma() {
             if !first {
                 expect!(self, Tok::Punct(Punct::Comma));
             }
@@ -217,7 +213,7 @@ where
     ///   type-qualifier declaration-specifiers.opt
     ///   function-specifier declaration-specifiers.opt
     ///   alignment-specifier declaration-specifiers.opt
-    fn declaration_specifiers(&mut self) -> Result<Spanned<DeclSpec>> {
+    fn decl_specifiers(&mut self) -> Result<Spanned<DeclSpec>> {
         let mut decl_attr = DeclAttr::default();
         let &(_, initial_span) = self.peek_t()?;
         let (ty, span) = loop {
@@ -299,48 +295,72 @@ where
     /// facing. For example: `int uwu` vs `int uwu()`. The parentheses indicate a function
     /// declaration. Therefore, we have no idea what we're parsing before entering this function.
     fn declarator(&mut self) -> Result<Spanned<Declarator>> {
-        if let Some((_, span)) = eat!(self, Tok::Punct(Punct::Asterisk)) {
-            let (decl, span2) = self.direct_declarator()?;
-
-            Ok((
-                Declarator {
-                    decl,
-                    pointer: true,
-                },
-                span.extend(span2),
-            ))
+        let pointer_span = if let Some((_, span)) = eat!(self, Tok::Punct(Punct::Asterisk)) {
+            Some(span)
         } else {
-            let (decl, span) = self.direct_declarator()?;
+            None
+        };
 
-            Ok((
-                Declarator {
-                    decl,
-                    pointer: false,
-                },
-                span,
-            ))
-        }
+        let (decl, span) = self.direct_declarator()?;
+
+        let declarator = Declarator {
+            decl,
+            pointer: pointer_span.is_some(),
+        };
+
+        let span = pointer_span.map(|s| s.extend(span)).unwrap_or(span);
+
+        Ok((declarator, span))
     }
 
     /// direct-declarator:
     ///     identifier
     ///     ( declarator )
-    ///     direct-declarator \[ type-qualifier-listopt assignment-expressionopt ]
-    ///     direct-declarator \[ static type-qualifier-listopt assignment-expression ]
+    ///     direct-declarator \[ type-qualifier-list.opt assignment-expression.opt ]
+    ///     direct-declarator \[ static type-qualifier-list.opt assignment-expression ]
     ///     direct-declarator \[ type-qualifier-list static assignment-expression ]
-    ///     direct-declarator \[ type-qualifier-listopt * ]
+    ///     direct-declarator \[ type-qualifier-list.opt * ]
     ///     direct-declarator ( parameter-type-list )
-    ///     direct-declarator ( identifier-listopt )
+    ///     direct-declarator ( identifier-list.opt )
     fn direct_declarator(&mut self) -> Result<Spanned<DirectDeclarator>> {
         let (ident, span) = self.ident()?;
 
         if (eat!(self, Tok::Punct(Punct::ParenOpen))).is_some() {
+            let mut params = Vec::new();
+            let mut first = true;
+
+            while self.is_peek_tok_start_of_ty() || self.is_peek_comma() {
+                if first {
+                    // the wrong way around because borrowing
+                    if let (Tok::Punct(Punct::ParenClose), _) = self.peek_t_n(1)? {
+                        if let &(ref tok @ Tok::Kw(Kw::Void), span) = self.peek_t()? {
+                            return Err(ParserError::unsupported(span, tok));
+                        }
+                    }
+                }
+
+                if !first {
+                    expect!(self, Tok::Punct(Punct::Comma));
+                }
+                first = false;
+
+                let decl_spec = self.decl_specifiers()?;
+                // abstract declarator actually
+                let declarator = self.declarator()?;
+
+                let function_param_decl = FunctionParamDecl {
+                    decl_spec,
+                    declarator,
+                };
+                params.push(function_param_decl);
+            }
+
             // nothing in the params supported yet.
             expect!(self, Tok::Punct(Punct::ParenClose));
             return Ok((
                 DirectDeclarator::WithParams {
                     ident: (ident, span),
-                    params: Vec::new(),
+                    params,
                 },
                 span,
             ));
@@ -383,22 +403,6 @@ where
             decls.push(decl);
         }
         Ok(decls)
-    }
-
-    fn function_param_declaration_list(&mut self) -> Result<FunctionParams> {
-        // If the declarator includes a parameter type list, the declaration of each parameter shall
-        // include an identifier, except for the special case of a parameter list consisting of a single
-        // parameter of type void, in which case there shall not be an identifier. No declaration list
-        // shall follow.
-        if let &(Tok::Kw(Kw::Void), span) = self.peek_t()? {
-            if let (Tok::Punct(Punct::ParenClose), _) = self.peek_t_n(1)? {
-                self.next_t()?;
-                self.next_t()?;
-                return Ok(FunctionParams::Void(span));
-            }
-        }
-
-        todo!()
     }
 }
 
