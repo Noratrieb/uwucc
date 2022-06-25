@@ -279,11 +279,13 @@ where
     ///     direct-declarator ( parameter-type-list )
     ///     direct-declarator ( identifier-listopt )
     fn direct_declarator(&mut self) -> Result<Spanned<DirectDeclarator>> {
-        if let Some((Tok::Ident(name), span)) = eat!(self, Tok::Ident(_)) {
-            return Ok((DirectDeclarator::Ident((name.to_owned(), span)), span));
+        let (ident, span) = self.ident()?;
+
+        if (eat!(self, Tok::Punct(Punct::ParenOpen))).is_some() {
+            todo!("haha, no parentheses for you!")
         }
 
-        todo!()
+        Ok((DirectDeclarator::Ident((ident, span)), span))
     }
 
     // -----------------------
