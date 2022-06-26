@@ -52,6 +52,7 @@ where
     fn expr_bp(&mut self, min_bp: u8) -> Result<Spanned<Expr>> {
         let mut lhs = self.get_lhs()?;
 
+        #[allow(clippy::while_let_loop)] // idc
         loop {
             let (tok, span) = match self.next_t() {
                 Ok(tok) => tok,
