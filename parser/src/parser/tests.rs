@@ -9,20 +9,16 @@ fn lex_and_pre(src: &str) -> impl Iterator<Item = (Tok<'_>, Span)> + '_ {
 }
 
 fn the_current_root_parse_thing<'src>(src: impl Iterator<Item = (Tok<'src>, Span)>) -> impl Debug {
-    use peekmore::PeekMore;
-
-    let mut parser = Parser {
-        lex: src.peekmore(),
-    };
-
-    parser.external_declarations()
+    super::parse_declarations(src)
 }
 
 macro_rules! parse_test {
     ($src:expr) => {
         let lexer = lex_and_pre($src);
-        let parsed = the_current_root_parse_thing(lexer);
-        insta::assert_debug_snapshot!(parsed);
+        let parsed = super::parse_declarations(lexer);
+        let parsed_pretty = dbg_pls::pretty(&parsed);
+
+        insta::assert_debug_snapshot!(parsed_pretty);
     };
 }
 

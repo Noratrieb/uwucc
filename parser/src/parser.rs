@@ -1,3 +1,4 @@
+use dbg_pls::{DebugPls, Formatter};
 use peekmore::PeekMoreIterator;
 
 use crate::{
@@ -19,19 +20,25 @@ pub struct ParserError {
 }
 
 impl ParserError {
-    #[track_caller]
     fn new(span: Span, message: String) -> Self {
         Self { span, message }
     }
 
-    #[track_caller]
     fn eof() -> Self {
         Self::new(Span::default(), "unexpected end of file".to_string())
     }
 
-    #[track_caller]
     fn unsupported(span: Span, token: &Tok<'_>) -> Self {
         Self::new(span, format!("`{token}` is not supported"))
+    }
+}
+
+impl DebugPls for ParserError {
+    fn fmt(&self, f: Formatter<'_>) {
+        f.debug_struct("ParserError")
+            .field("span", &self.span)
+            .field("message", &self.message)
+            .finish();
     }
 }
 

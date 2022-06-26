@@ -1,63 +1,36 @@
 ---
 source: parser/src/parser/tests.rs
-expression: parsed
+expression: parsed_pretty
 ---
-Ok(
-    [
-        (
-            Decl(
-                Normal(
-                    NormalDecl {
-                        decl_spec: DeclSpec {
-                            ty: Int,
-                            attrs: (empty),
+Ok([
+    (
+        Decl(
+            Normal(NormalDecl {
+                decl_spec: DeclSpec {
+                    ty: Int,
+                    attrs: "(empty)",
+                },
+                init_declarators: [
+                    (
+                        InitDecl {
+                            declarator: Declarator {
+                                decl: Ident(("x", 5..6)),
+                                pointer: false,
+                            },
+                            init: Some((
+                                Binary(ExprBinary {
+                                    lhs: (Atom(Int(1)), 9..10),
+                                    rhs: (Atom(Int(1)), 13..14),
+                                    op: Add,
+                                }),
+                                9..14,
+                            )),
                         },
-                        init_declarators: [
-                            (
-                                InitDecl {
-                                    declarator: Declarator {
-                                        decl: Ident(
-                                            (
-                                                "x",
-                                                5..6,
-                                            ),
-                                        ),
-                                        pointer: false,
-                                    },
-                                    init: Some(
-                                        (
-                                            Binary(
-                                                ExprBinary {
-                                                    lhs: (
-                                                        Atom(
-                                                            Int(
-                                                                1,
-                                                            ),
-                                                        ),
-                                                        9..10,
-                                                    ),
-                                                    rhs: (
-                                                        Atom(
-                                                            Int(
-                                                                1,
-                                                            ),
-                                                        ),
-                                                        13..14,
-                                                    ),
-                                                    op: Add,
-                                                },
-                                            ),
-                                            9..14,
-                                        ),
-                                    ),
-                                },
-                                5..6,
-                            ),
-                        ],
-                    },
-                ),
-            ),
-            1..6,
+                        5..6,
+                    ),
+                ],
+            }),
         ),
-    ],
-)
+        1..6,
+    ),
+])

@@ -1,42 +1,33 @@
 ---
 source: parser/src/parser/tests.rs
-expression: parsed
+expression: parsed_pretty
 ---
-Ok(
-    [
-        (
-            FunctionDef(
-                FunctionDef {
-                    declaration: Normal(
-                        NormalDecl {
-                            decl_spec: DeclSpec {
-                                ty: Int,
-                                attrs: EXTERN | THREAD_LOCAL,
-                            },
-                            init_declarators: [
-                                (
-                                    InitDecl {
-                                        declarator: Declarator {
-                                            decl: WithParams {
-                                                ident: (
-                                                    "uwu",
-                                                    35..38,
-                                                ),
-                                                params: [],
-                                            },
-                                            pointer: false,
-                                        },
-                                        init: None,
-                                    },
-                                    35..38,
-                                ),
-                            ],
-                        },
-                    ),
-                    body: [],
+Ok([
+    (
+        FunctionDef(FunctionDef {
+            declaration: Normal(NormalDecl {
+                decl_spec: DeclSpec {
+                    ty: Int,
+                    attrs: "EXTERN | THREAD_LOCAL",
                 },
-            ),
-            1..43,
-        ),
-    ],
-)
+                init_declarators: [
+                    (
+                        InitDecl {
+                            declarator: Declarator {
+                                decl: WithParams {
+                                    ident: ("uwu", 35..38),
+                                    params: [],
+                                },
+                                pointer: false,
+                            },
+                            init: None,
+                        },
+                        35..38,
+                    ),
+                ],
+            }),
+            body: [],
+        }),
+        1..43,
+    ),
+])
