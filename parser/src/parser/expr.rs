@@ -19,16 +19,18 @@ where
     }
 
     fn get_lhs(&mut self) -> Result<Spanned<Expr>> {
-        let (typ, span) = match self.next_t()? {
-            (Tok::Ident(ident), span) => (Atom::Ident(ident.to_string()), span),
-            (Tok::StringLiteral(literal), span) => (Atom::String(literal.to_string()), span),
-            (Tok::Constant(Constant::Int(int)), span) => (Atom::Int(int), span),
-            (Tok::Constant(Constant::Float(float)), span) => (Atom::Float(float), span),
-            (Tok::Constant(Constant::Char(char)), span) => (Atom::Char(char), span),
-            (Tok::Punct(punct), span) => {
+        let (typ, span) = match self.peek_t()? {
+            &(Tok::Ident(ident), span) => (Atom::Ident(ident.to_string()), span),
+            &(Tok::StringLiteral(literal), span) => (Atom::String(literal.to_string()), span),
+            &(Tok::Constant(Constant::Int(int)), span) => (Atom::Int(int), span),
+            &(Tok::Constant(Constant::Float(float)), span) => (Atom::Float(float), span),
+            &(Tok::Constant(Constant::Char(char)), span) => (Atom::Char(char), span),
+            &(Tok::Punct(punct), span) => {
                 let r_bp = prefix_binding_power(&Tok::Punct(punct));
-                let op = unary_op_from_token(&Tok::Punct(punct), span)?;
+                let Some(op) = unary_op_from_token(&Tok::Punct(punct)) else { panic!() };
                 let rhs = self.expr_bp(r_bp)?;
+
+                self.next_t()?;
 
                 return Ok((
                     Expr::Unary(ExprUnary {
@@ -40,12 +42,13 @@ where
             }
             (tok, span) => {
                 return Err(ParserError::new(
-                    span,
+                    *span,
                     format!("expected expression, found {tok}"),
                 ));
             }
         };
 
+        self.next_t()?;
         Ok((Expr::Atom(typ), span))
     }
 
@@ -54,11 +57,13 @@ where
 
         #[allow(clippy::while_let_loop)] // idc
         loop {
-            let (tok, span) = match self.next_t() {
-                Ok(tok) => tok,
+            let (tok, _) = match self.peek_t() {
+                Ok(&tok) => tok,
                 Err(_) => break,
             };
-            let op = binary_op_from_token(&tok, span)?;
+            let Some(op) = binary_op_from_token(&tok) else { break; };
+
+            self.next_t()?;
 
             let (l_bp, r_bp) = infix_binding_power(&tok);
             if l_bp < min_bp {
@@ -83,28 +88,22 @@ where
     }
 }
 
-fn unary_op_from_token(tok: &Tok<'_>, span: Span) -> Result<UnaryOp> {
+fn unary_op_from_token(tok: &Tok<'_>) -> Option<UnaryOp> {
     match tok {
-        Tok::Punct(P::Ampersand) => Ok(UnaryOp::AddrOf),
-        Tok::Punct(P::Asterisk) => Ok(UnaryOp::Deref),
-        Tok::Punct(P::Plus) => Ok(UnaryOp::Plus),
-        Tok::Punct(P::Minus) => Ok(UnaryOp::Minus),
-        Tok::Punct(P::Tilde) => Ok(UnaryOp::Tilde),
-        Tok::Punct(P::Bang) => Ok(UnaryOp::Bang),
-        _ => Err(ParserError::new(
-            span,
-            format!("invalid unary operation: {tok}"),
-        )),
+        Tok::Punct(P::Ampersand) => Some(UnaryOp::AddrOf),
+        Tok::Punct(P::Asterisk) => Some(UnaryOp::Deref),
+        Tok::Punct(P::Plus) => Some(UnaryOp::Plus),
+        Tok::Punct(P::Minus) => Some(UnaryOp::Minus),
+        Tok::Punct(P::Tilde) => Some(UnaryOp::Tilde),
+        Tok::Punct(P::Bang) => Some(UnaryOp::Bang),
+        _ => None,
     }
 }
-fn binary_op_from_token(tok: &Tok<'_>, span: Span) -> Result<BinaryOp> {
+fn binary_op_from_token(tok: &Tok<'_>) -> Option<BinaryOp> {
     match tok {
-        Tok::Punct(P::Plus) => Ok(BinaryOp::Add),
-        Tok::Punct(P::Minus) => Ok(BinaryOp::Sub),
-        _ => Err(ParserError::new(
-            span,
-            format!("invalid binary operation: {tok}"),
-        )),
+        Tok::Punct(P::Plus) => Some(BinaryOp::Add),
+        Tok::Punct(P::Minus) => Some(BinaryOp::Sub),
+        _ => None,
     }
 }
 

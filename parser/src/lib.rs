@@ -1,4 +1,5 @@
-#![allow(dead_code)]
+#![feature(let_else)]
+#![allow(dead_code)] // TODO: no
 #![warn(rust_2018_idioms)]
 
 use std::fmt::Debug;

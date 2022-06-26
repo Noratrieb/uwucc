@@ -19,14 +19,17 @@ pub struct ParserError {
 }
 
 impl ParserError {
+    #[track_caller]
     fn new(span: Span, message: String) -> Self {
         Self { span, message }
     }
 
+    #[track_caller]
     fn eof() -> Self {
         Self::new(Span::default(), "unexpected end of file".to_string())
     }
 
+    #[track_caller]
     fn unsupported(span: Span, token: &Tok<'_>) -> Self {
         Self::new(span, format!("`{token}` is not supported"))
     }
