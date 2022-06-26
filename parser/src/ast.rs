@@ -33,6 +33,7 @@ pub enum BinaryOp {
     Add,
     Sub,
     Comma,
+    Index, // lhs[rhs]
 }
 
 #[derive(Debug, DebugPls)]

@@ -4,7 +4,7 @@
 
 use crate::{
     ast::{Atom, BinaryOp, Expr, ExprBinary, ExprUnary, UnaryOp},
-    parser::{Parser, ParserError, Result},
+    parser::{expect, Parser, ParserError, Result},
     pre::Punctuator as P,
     token::{Constant, Token as Tok},
     Span, Spanned,
@@ -25,6 +25,13 @@ where
             &(Tok::Constant(Constant::Int(int)), span) => (Atom::Int(int), span),
             &(Tok::Constant(Constant::Float(float)), span) => (Atom::Float(float), span),
             &(Tok::Constant(Constant::Char(char)), span) => (Atom::Char(char), span),
+            &(Tok::Punct(P::ParenOpen), _) => {
+                // TODO: casts... yikes
+                self.next_t()?;
+                let lhs = self.expr_bp(0);
+                expect!(self, Tok::Punct(P::ParenClose));
+                return lhs;
+            }
             &(Tok::Punct(punct), span) => {
                 let r_bp = prefix_binding_power(&Tok::Punct(punct));
                 let Some(op) = unary_op_from_token(&Tok::Punct(punct)) else { panic!() };
@@ -61,27 +68,52 @@ where
                 Ok(&tok) => tok,
                 Err(_) => break,
             };
-            let Some(op) = binary_op_from_token(&tok) else { break; };
 
-            self.next_t()?;
-
-            let (l_bp, r_bp) = infix_binding_power(&tok);
-            if l_bp < min_bp {
-                break;
+            if let Some(l_bp) = postfix_binding_power(&tok) {
+                if l_bp < min_bp {
+                    break;
+                }
+                let (tok, _) = self.next_t()?;
+                if let Tok::Punct(P::BracketOpen) = tok {
+                    let rhs = self.expr_bp(0)?;
+                    let span = expect!(self, Tok::Punct(P::BracketClose));
+                    let span = lhs.1.extend(span);
+                    lhs = (
+                        Expr::Binary(ExprBinary {
+                            lhs: Box::new(lhs),
+                            rhs: Box::new(rhs),
+                            op: BinaryOp::Index,
+                        }),
+                        span,
+                    );
+                }
+                continue;
             }
 
-            let rhs = self.expr_bp(r_bp)?;
+            if let Some(op) = binary_op_from_token(&tok) {
+                let (l_bp, r_bp) = infix_binding_power(&tok);
+                if l_bp < min_bp {
+                    break;
+                }
 
-            let span = lhs.1.extend(rhs.1);
+                self.next_t()?;
 
-            lhs = (
-                Expr::Binary(ExprBinary {
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                    op,
-                }),
-                span,
-            )
+                let rhs = self.expr_bp(r_bp)?;
+
+                let span = lhs.1.extend(rhs.1);
+
+                lhs = (
+                    Expr::Binary(ExprBinary {
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
+                        op,
+                    }),
+                    span,
+                );
+                continue;
+            }
+
+            break;
         }
 
         Ok(lhs)
@@ -120,5 +152,12 @@ fn infix_binding_power(tok: &Tok<'_>) -> (u8, u8) {
         Tok::Punct(P::Plus | P::Minus) => (3, 4),
         Tok::Punct(P::Asterisk | P::Slash) => (5, 6),
         _ => panic!("invalid token in expression! {tok:?}"),
+    }
+}
+
+fn postfix_binding_power(tok: &Tok<'_>) -> Option<u8> {
+    match tok {
+        Tok::Punct(P::BracketOpen) => Some(45),
+        _ => None,
     }
 }

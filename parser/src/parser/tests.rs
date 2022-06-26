@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use super::{Parser, Tok};
+use super::Tok;
 use crate::Span;
 
 fn lex_and_pre(src: &str) -> impl Iterator<Item = (Tok<'_>, Span)> + '_ {
@@ -63,10 +63,14 @@ int function();
 }
 
 #[test]
-fn small_expression() {
+fn small_expressions() {
     parse_test!(
         r#"
 int x = 1 + 1;
+
+int y = (1 + (2 - 3));
+
+int z = (array[9]);
     "#
     );
 }

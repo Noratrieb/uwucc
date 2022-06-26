@@ -1,0 +1,103 @@
+---
+source: parser/src/parser/tests.rs
+expression: parsed_pretty
+---
+Ok([
+    (
+        Decl(
+            Normal(NormalDecl {
+                decl_spec: DeclSpec {
+                    ty: Int,
+                    attrs: "(empty)",
+                },
+                init_declarators: [
+                    (
+                        InitDecl {
+                            declarator: Declarator {
+                                decl: Ident(("x", 5..6)),
+                                pointer: false,
+                            },
+                            init: Some((
+                                Binary(ExprBinary {
+                                    lhs: (Atom(Int(1)), 9..10),
+                                    rhs: (Atom(Int(1)), 13..14),
+                                    op: Add,
+                                }),
+                                9..14,
+                            )),
+                        },
+                        5..6,
+                    ),
+                ],
+            }),
+        ),
+        1..6,
+    ),
+    (
+        Decl(
+            Normal(NormalDecl {
+                decl_spec: DeclSpec {
+                    ty: Int,
+                    attrs: "(empty)",
+                },
+                init_declarators: [
+                    (
+                        InitDecl {
+                            declarator: Declarator {
+                                decl: Ident(("y", 21..22)),
+                                pointer: false,
+                            },
+                            init: Some((
+                                Binary(ExprBinary {
+                                    lhs: (Atom(Int(1)), 26..27),
+                                    rhs: (
+                                        Binary(ExprBinary {
+                                            lhs: (Atom(Int(2)), 31..32),
+                                            rhs: (Atom(Int(3)), 35..36),
+                                            op: Sub,
+                                        }),
+                                        31..36,
+                                    ),
+                                    op: Add,
+                                }),
+                                26..36,
+                            )),
+                        },
+                        21..22,
+                    ),
+                ],
+            }),
+        ),
+        17..22,
+    ),
+    (
+        Decl(
+            Normal(NormalDecl {
+                decl_spec: DeclSpec {
+                    ty: Int,
+                    attrs: "(empty)",
+                },
+                init_declarators: [
+                    (
+                        InitDecl {
+                            declarator: Declarator {
+                                decl: Ident(("z", 45..46)),
+                                pointer: false,
+                            },
+                            init: Some((
+                                Binary(ExprBinary {
+                                    lhs: (Atom(Ident("array")), 50..55),
+                                    rhs: (Atom(Int(9)), 56..57),
+                                    op: Index,
+                                }),
+                                50..58,
+                            )),
+                        },
+                        45..46,
+                    ),
+                ],
+            }),
+        ),
+        41..46,
+    ),
+])

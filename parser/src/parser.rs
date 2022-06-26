@@ -51,7 +51,8 @@ where
     lex: PeekMoreIterator<I>,
 }
 
-macro_rules! expect {
+// HACK: It's called `_parser` as a workaround this being ambiguous with the `#[expect]` attribute
+macro_rules! expect_parser {
     ($self:ident, $pat:pat) => {
         match $self.next_t()? {
             ($pat, span) => span,
@@ -68,6 +69,8 @@ macro_rules! expect {
     };
 }
 
+use expect_parser as expect;
+
 macro_rules! eat {
     ($self:ident, $pat:pat) => {
         match $self.peek_t() {
@@ -76,6 +79,8 @@ macro_rules! eat {
         }
     };
 }
+
+use eat;
 
 /// Can be called for the start of a sequence of tokens that could be a type.
 #[rustfmt::skip]
