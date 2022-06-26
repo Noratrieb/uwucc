@@ -19,13 +19,13 @@ where
     }
 
     fn get_lhs(&mut self) -> Result<Spanned<Expr>> {
-        let (typ, span) = match self.peek_t()? {
+        let (typ, span) = match self.next_t()? {
             (Tok::Ident(ident), span) => (Atom::Ident(ident.to_string()), span),
             (Tok::StringLiteral(literal), span) => (Atom::String(literal.to_string()), span),
-            (Tok::Constant(Constant::Int(int)), span) => (Atom::Int(*int), span),
-            (Tok::Constant(Constant::Float(float)), span) => (Atom::Float(*float), span),
-            (Tok::Constant(Constant::Char(char)), span) => (Atom::Char(*char), span),
-            &(Tok::Punct(punct), span) => {
+            (Tok::Constant(Constant::Int(int)), span) => (Atom::Int(int), span),
+            (Tok::Constant(Constant::Float(float)), span) => (Atom::Float(float), span),
+            (Tok::Constant(Constant::Char(char)), span) => (Atom::Char(char), span),
+            (Tok::Punct(punct), span) => {
                 let r_bp = prefix_binding_power(&Tok::Punct(punct));
                 let op = unary_op_from_token(&Tok::Punct(punct), span)?;
                 let rhs = self.expr_bp(r_bp)?;
@@ -40,13 +40,13 @@ where
             }
             (tok, span) => {
                 return Err(ParserError::new(
-                    *span,
+                    span,
                     format!("expected expression, found {tok}"),
                 ));
             }
         };
 
-        Ok((Expr::Atom(typ), *span))
+        Ok((Expr::Atom(typ), span))
     }
 
     fn expr_bp(&mut self, min_bp: u8) -> Result<Spanned<Expr>> {
@@ -79,7 +79,7 @@ where
             )
         }
 
-        todo!()
+        Ok(lhs)
     }
 }
 

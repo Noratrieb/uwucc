@@ -113,7 +113,7 @@ pub enum Decl {
 #[derive(Debug, DebugPls)]
 pub struct InitDecl {
     pub declarator: Declarator,
-    pub init: Option<Expr>,
+    pub init: Option<Spanned<Expr>>,
 }
 
 #[derive(Debug, DebugPls)]

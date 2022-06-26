@@ -65,3 +65,12 @@ int function();
     "#
     );
 }
+
+#[test]
+fn small_expression() {
+    parse_test!(
+        r#"
+int x = 1 + 1;
+    "#
+    );
+}

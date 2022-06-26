@@ -196,13 +196,13 @@ where
             first = false;
 
             let (declarator, span) = self.declarator()?;
-            if let Some((token, span)) = eat!(self, Tok::Punct(Punct::Eq)) {
-                return Err(ParserError::unsupported(span, &token));
-            }
-            let init_decl = InitDecl {
-                declarator,
-                init: None,
+            let init = if eat!(self, Tok::Punct(Punct::Eq)).is_some() {
+                let expr = self.expr()?;
+                Some(expr)
+            } else {
+                None
             };
+            let init_decl = InitDecl { declarator, init };
             init_decls.push((init_decl, span));
         }
 

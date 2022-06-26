@@ -385,6 +385,7 @@ where
                 (b'.', _, _) => break (TokP(Punctuator::Dot), start_span),
                 (b'&', _, _) => break (TokP(Punctuator::Ampersand), start_span),
                 (b'*', _, _) => break (TokP(Punctuator::Asterisk), start_span),
+                (b'+', _, _) => break (TokP(Punctuator::Plus), start_span),
                 (b'-', _, _) => break (TokP(Punctuator::Minus), start_span),
                 (b'~', _, _) => break (TokP(Punctuator::Tilde), start_span),
                 (b'!', _, _) => break (TokP(Punctuator::Bang), start_span),
@@ -451,6 +452,8 @@ int main() {
     #[test]
     fn some_operators() {
         let src = r#"
+int x = 1 + 1;
+        
 int hello(const char* uwu) <%
     uwu[5] <<= 23;
     *uwu * (p++);
