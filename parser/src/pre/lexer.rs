@@ -349,6 +349,8 @@ where
                 (b'.', Some(b'.'), Some(b'.')) => triple_punct!(self, DotDotDot),
                 (b'<', Some(b'<'), Some(b'=')) => triple_punct!(self, LeftLeftChevronEq),
                 (b'>', Some(b'>'), Some(b'=')) => triple_punct!(self, RightRightChevronEq),
+                // the pretty pretty unicode arrow → is obviously supported here, i hope this won't cause probelms
+                (b'\xE2', Some(b'\x86'), Some(b'\x92')) => triple_punct!(self, Arrow),
                 // DOUBLE CHARACTER PUNCTUATION
                 (b'<', Some(b':'), _) => double_punct!(self, BracketOpen),
                 (b':', Some(b'>'), _) => double_punct!(self, BracketClose),
@@ -454,6 +456,15 @@ int hello(const char* uwu) <%
     *uwu * (p++);
     return p;
 %>"#;
+
+        lex_test!(src);
+    }
+
+    #[test]
+    fn pretty_arrow() {
+        let src = r#"
+struct_ptr→field;
+"#;
 
         lex_test!(src);
     }

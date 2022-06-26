@@ -1,0 +1,30 @@
+---
+source: parser/src/pre/lexer.rs
+expression: tokens
+---
+[
+    (
+        Identifier(
+            "struct_ptr",
+        ),
+        1..11,
+    ),
+    (
+        Punctuator(
+            Arrow,
+        ),
+        11..14,
+    ),
+    (
+        Identifier(
+            "field",
+        ),
+        14..19,
+    ),
+    (
+        Punctuator(
+            Semicolon,
+        ),
+        19..20,
+    ),
+]
