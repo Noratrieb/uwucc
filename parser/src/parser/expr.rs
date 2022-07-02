@@ -170,18 +170,63 @@ fn binary_op_from_token(tok: &Tok<'_>) -> Option<BinaryOp> {
     }
 }
 
+mod powers {
+    pub const COMMA: (u8, u8) = (1, 2);
+    pub const ASSIGN: (u8, u8) = (3, 4);
+    pub const TERNARY: (u8, u8) = (5, 6);
+    pub const LOGICAL_OR: (u8, u8) = (7, 8);
+    pub const LOGICAL_AND: (u8, u8) = (9, 10);
+    pub const BIT_OR: (u8, u8) = (11, 12);
+    pub const BIT_XOR: (u8, u8) = (13, 14);
+    pub const BIT_AND: (u8, u8) = (15, 16);
+    pub const EQ_NEQ: (u8, u8) = (17, 18);
+    pub const CMP: (u8, u8) = (19, 20);
+    pub const SHIFT: (u8, u8) = (21, 22);
+    pub const ADD_SUB: (u8, u8) = (23, 24);
+    pub const MUL_DIV_MOD: (u8, u8) = (25, 26);
+    pub const CAST: (u8, u8) = (27, 28);
+    pub const UNARY_OPERATOR: u8 = 29;
+    pub const POSTFIX: u8 = 30;
+}
+
 fn prefix_binding_power(tok: &Tok<'_>) -> u8 {
     match tok {
-        Tok::Punct(P::Ampersand | P::Asterisk | P::Plus | P::Minus | P::Tilde | P::Bang) => 255,
+        Tok::Punct(P::Ampersand | P::Asterisk | P::Plus | P::Minus | P::Tilde | P::Bang) => {
+            powers::UNARY_OPERATOR
+        }
         _ => panic!("invalid token in expression! {tok:?}"),
     }
 }
 
 fn infix_binding_power(tok: &Tok<'_>) -> (u8, u8) {
-    match tok {
-        Tok::Punct(P::Comma) => (1, 2),
-        Tok::Punct(P::Plus | P::Minus) => (3, 4),
-        Tok::Punct(P::Asterisk | P::Slash) => (5, 6),
+    let Tok::Punct(puct) = tok else {
+        panic!("invalid token in expression! {tok:?}")
+    };
+
+    match puct {
+        P::Comma => powers::COMMA,
+        P::Eq
+        | P::PlusEq
+        | P::MinusEq
+        | P::AsteriskEq
+        | P::SlashEq
+        | P::PercentEq
+        | P::LeftLeftChevronEq
+        | P::RightRightChevronEq
+        | P::AmpersandEq
+        | P::CaretEq
+        | P::PipeEq => powers::ASSIGN,
+        // then, ternary here
+        P::PipePipe => powers::LOGICAL_OR,
+        P::AmpersandAmpersand => powers::LOGICAL_AND,
+        P::Pipe => powers::BIT_OR,
+        P::Caret => powers::BIT_XOR,
+        P::Ampersand => powers::BIT_AND,
+        P::EqEq | P::BangEq => powers::EQ_NEQ,
+        P::LeftChevron | P::RightChevron | P::LeftChevronEq | P::RightChevronEq => powers::CMP,
+        P::LeftLeftChevron | P::RightRightChevron => powers::SHIFT,
+        P::Plus | P::Minus => powers::ADD_SUB,
+        P::Asterisk | P::Slash | P::Percent => powers::MUL_DIV_MOD,
         _ => panic!("invalid token in expression! {tok:?}"),
     }
 }
