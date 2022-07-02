@@ -173,8 +173,8 @@ pub struct Declarator {
 
 #[derive(Debug, DebugPls)]
 pub struct FunctionDef {
-    pub declaration: Decl,
-    pub body: Vec<Expr>,
+    pub decl: Decl,
+    pub body: Vec<()>,
 }
 
 #[derive(Debug, DebugPls)]
@@ -182,3 +182,5 @@ pub enum ExternalDecl {
     Decl(Decl),
     FunctionDef(FunctionDef),
 }
+
+pub type TranslationUnit = Vec<ExternalDecl>;

@@ -9,6 +9,7 @@ use crate::token::Token;
 mod ast;
 mod parser;
 mod pre;
+mod pretty;
 mod token;
 
 pub type Spanned<T> = (T, Span);

@@ -1,66 +1,69 @@
 ---
 source: parser/src/parser/tests.rs
-expression: parsed_pretty
+expression: "(parsed_pretty, pretty_printed_source)"
 ---
-Ok([
-    (
-        FunctionDef(FunctionDef {
-            declaration: Normal(NormalDecl {
-                decl_spec: DeclSpec {
-                    ty: Int,
-                    attrs: "(empty)",
-                },
-                init_declarators: [
-                    (
-                        InitDecl {
-                            declarator: Declarator {
-                                decl: WithParams {
-                                    ident: ("uwu", 5..8),
-                                    params: [
-                                        FunctionParamDecl {
-                                            decl_spec: (
-                                                DeclSpec {
-                                                    ty: Long,
-                                                    attrs: "(empty)",
-                                                },
-                                                9..13,
-                                            ),
-                                            declarator: (
-                                                Declarator {
-                                                    decl: Ident(("owo", 14..17)),
-                                                    pointer: false,
-                                                },
-                                                14..17,
-                                            ),
-                                        },
-                                        FunctionParamDecl {
-                                            decl_spec: (
-                                                DeclSpec {
-                                                    ty: Int,
-                                                    attrs: "(empty)",
-                                                },
-                                                19..22,
-                                            ),
-                                            declarator: (
-                                                Declarator {
-                                                    decl: Ident(("qwq", 23..26)),
-                                                    pointer: false,
-                                                },
-                                                23..26,
-                                            ),
-                                        },
-                                    ],
+(
+    Ok([
+        (
+            FunctionDef(FunctionDef {
+                decl: Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Int,
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: WithParams {
+                                        ident: ("uwu", 5..8),
+                                        params: [
+                                            FunctionParamDecl {
+                                                decl_spec: (
+                                                    DeclSpec {
+                                                        ty: Long,
+                                                        attrs: "(empty)",
+                                                    },
+                                                    9..13,
+                                                ),
+                                                declarator: (
+                                                    Declarator {
+                                                        decl: Ident(("owo", 14..17)),
+                                                        pointer: false,
+                                                    },
+                                                    14..17,
+                                                ),
+                                            },
+                                            FunctionParamDecl {
+                                                decl_spec: (
+                                                    DeclSpec {
+                                                        ty: Int,
+                                                        attrs: "(empty)",
+                                                    },
+                                                    19..22,
+                                                ),
+                                                declarator: (
+                                                    Declarator {
+                                                        decl: Ident(("qwq", 23..26)),
+                                                        pointer: false,
+                                                    },
+                                                    23..26,
+                                                ),
+                                            },
+                                        ],
+                                    },
+                                    pointer: false,
                                 },
-                                pointer: false,
+                                init: None,
                             },
-                            init: None,
-                        },
-                        5..8,
-                    ),
-                ],
+                            5..8,
+                        ),
+                    ],
+                }),
+                body: [],
             }),
-            body: [],
-        }),
-        1..30,
-    ),
-])
+            1..30,
+        ),
+    ]),
+    "",
+)

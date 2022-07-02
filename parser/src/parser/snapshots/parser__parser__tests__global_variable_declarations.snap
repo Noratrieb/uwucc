@@ -1,88 +1,91 @@
 ---
 source: parser/src/parser/tests.rs
-expression: parsed_pretty
+expression: "(parsed_pretty, pretty_printed_source)"
 ---
-Ok([
-    (
-        Decl(
-            Normal(NormalDecl {
-                decl_spec: DeclSpec {
-                    ty: Int,
-                    attrs: "(empty)",
-                },
-                init_declarators: [
-                    (
-                        InitDecl {
-                            declarator: Declarator {
-                                decl: Ident(("test", 5..9)),
-                                pointer: false,
-                            },
-                            init: None,
-                        },
-                        5..9,
-                    ),
-                ],
-            }),
-        ),
-        1..9,
-    ),
-    (
-        Decl(
-            Normal(NormalDecl {
-                decl_spec: DeclSpec {
-                    ty: Double,
-                    attrs: "THREAD_LOCAL",
-                },
-                init_declarators: [
-                    (
-                        InitDecl {
-                            declarator: Declarator {
-                                decl: Ident(("uwu", 32..35)),
-                                pointer: false,
-                            },
-                            init: None,
-                        },
-                        32..35,
-                    ),
-                    (
-                        InitDecl {
-                            declarator: Declarator {
-                                decl: Ident(("owo", 37..40)),
-                                pointer: false,
-                            },
-                            init: None,
-                        },
-                        37..40,
-                    ),
-                ],
-            }),
-        ),
-        11..40,
-    ),
-    (
-        Decl(
-            Normal(NormalDecl {
-                decl_spec: DeclSpec {
-                    ty: Int,
-                    attrs: "(empty)",
-                },
-                init_declarators: [
-                    (
-                        InitDecl {
-                            declarator: Declarator {
-                                decl: WithParams {
-                                    ident: ("function", 68..76),
-                                    params: [],
+(
+    Ok([
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Int,
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("test", 5..9)),
+                                    pointer: false,
                                 },
-                                pointer: false,
+                                init: None,
                             },
-                            init: None,
-                        },
-                        68..76,
-                    ),
-                ],
-            }),
+                            5..9,
+                        ),
+                    ],
+                }),
+            ),
+            1..9,
         ),
-        64..76,
-    ),
-])
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Double,
+                        attrs: "THREAD_LOCAL",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("uwu", 32..35)),
+                                    pointer: false,
+                                },
+                                init: None,
+                            },
+                            32..35,
+                        ),
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("owo", 37..40)),
+                                    pointer: false,
+                                },
+                                init: None,
+                            },
+                            37..40,
+                        ),
+                    ],
+                }),
+            ),
+            11..40,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Int,
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: WithParams {
+                                        ident: ("function", 68..76),
+                                        params: [],
+                                    },
+                                    pointer: false,
+                                },
+                                init: None,
+                            },
+                            68..76,
+                        ),
+                    ],
+                }),
+            ),
+            64..76,
+        ),
+    ]),
+    "",
+)

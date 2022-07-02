@@ -402,7 +402,7 @@ where
 
             Ok((
                 ExternalDecl::FunctionDef(FunctionDef {
-                    declaration,
+                    decl: declaration,
                     body: Vec::new(),
                 }),
                 span.extend(span2),

@@ -1,15 +1,15 @@
-use std::fmt::Debug;
-
 use super::Tok;
-use crate::Span;
+use crate::{ast::ExternalDecl, parser::ParserError, Span, Spanned};
 
 fn lex_and_pre(src: &str) -> impl Iterator<Item = (Tok<'_>, Span)> + '_ {
     let pre_tokens = crate::pre::preprocess_tokens(src);
     crate::token::pre_tokens_to_tokens(pre_tokens)
 }
 
-fn the_current_root_parse_thing<'src>(src: impl Iterator<Item = (Tok<'src>, Span)>) -> impl Debug {
-    super::parse_declarations(src)
+fn pretty_print(ast: &Result<Vec<Spanned<ExternalDecl>>, ParserError>) -> String {
+    let mut vec = Vec::new();
+
+    String::from_utf8_lossy(&vec).into_owned()
 }
 
 macro_rules! parse_test {
@@ -17,8 +17,9 @@ macro_rules! parse_test {
         let lexer = lex_and_pre($src);
         let parsed = super::parse_declarations(lexer);
         let parsed_pretty = dbg_pls::pretty(&parsed);
+        let pretty_printed_source = pretty_print(&parsed);
 
-        insta::assert_debug_snapshot!(parsed_pretty);
+        insta::assert_debug_snapshot!((parsed_pretty, pretty_printed_source));
     };
 }
 
