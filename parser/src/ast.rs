@@ -29,11 +29,38 @@ pub enum UnaryOp {
 }
 
 #[derive(Debug, DebugPls)]
-pub enum BinaryOp {
+pub enum ArithOpKind {
+    Mul,
+    Div,
+    Mod,
     Add,
     Sub,
+    Shl,
+    Shr,
+    BitAnd,
+    BitXor,
+    BitOr,
+}
+
+#[derive(Debug, DebugPls)]
+pub enum ComparisonKind {
+    Lt,
+    Gt,
+    LtEq,
+    GtEq,
+    Eq,
+    Neq,
+}
+
+#[derive(Debug, DebugPls)]
+pub enum BinaryOp {
+    Arith(ArithOpKind),
+    LogicalAnd,
+    LogicalOr,
+    Comparison(ComparisonKind),
     Comma,
     Index, // lhs[rhs]
+    Assign(Option<ArithOpKind>),
 }
 
 #[derive(Debug, DebugPls)]

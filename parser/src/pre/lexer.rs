@@ -108,7 +108,7 @@ pub enum Punctuator {
     /// >>=
     RightRightChevronEq,
     /// &=
-    AmspersandEq,
+    AmpersandEq,
     /// ^=
     CaretEq,
     /// |=
@@ -166,7 +166,7 @@ impl Display for Punctuator {
             Punctuator::MinusEq => f.write_str("-="),
             Punctuator::LeftLeftChevronEq => f.write_str("<<="),
             Punctuator::RightRightChevronEq => f.write_str(">>="),
-            Punctuator::AmspersandEq => f.write_str("&="),
+            Punctuator::AmpersandEq => f.write_str("&="),
             Punctuator::CaretEq => f.write_str("^="),
             Punctuator::PipeEq => f.write_str("|="),
             Punctuator::Comma => f.write_str(","),
@@ -372,7 +372,7 @@ where
                 (b'%', Some(b'='), _) => double_punct!(self, PercentEq),
                 (b'+', Some(b'='), _) => double_punct!(self, PlusEq),
                 (b'-', Some(b'='), _) => double_punct!(self, MinusEq),
-                (b'&', Some(b'='), _) => double_punct!(self, AmspersandEq),
+                (b'&', Some(b'='), _) => double_punct!(self, AmpersandEq),
                 (b'^', Some(b'='), _) => double_punct!(self, CaretEq),
                 (b'|', Some(b'='), _) => double_punct!(self, PipeEq),
                 // SINGLE CHARACTER PUNCTUATION

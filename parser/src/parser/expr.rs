@@ -3,7 +3,7 @@
 //! For more information, see https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 
 use crate::{
-    ast::{Atom, BinaryOp, Expr, ExprBinary, ExprUnary, UnaryOp},
+    ast::{ArithOpKind, Atom, BinaryOp, ComparisonKind, Expr, ExprBinary, ExprUnary, UnaryOp},
     parser::{expect, Parser, ParserError, Result},
     pre::Punctuator as P,
     token::{Constant, Token as Tok},
@@ -133,8 +133,39 @@ fn unary_op_from_token(tok: &Tok<'_>) -> Option<UnaryOp> {
 }
 fn binary_op_from_token(tok: &Tok<'_>) -> Option<BinaryOp> {
     match tok {
-        Tok::Punct(P::Plus) => Some(BinaryOp::Add),
-        Tok::Punct(P::Minus) => Some(BinaryOp::Sub),
+        // arithmetic operators
+        Tok::Punct(P::Plus) => Some(BinaryOp::Arith(ArithOpKind::Add)),
+        Tok::Punct(P::Minus) => Some(BinaryOp::Arith(ArithOpKind::Sub)),
+        Tok::Punct(P::Asterisk) => Some(BinaryOp::Arith(ArithOpKind::Mul)),
+        Tok::Punct(P::Slash) => Some(BinaryOp::Arith(ArithOpKind::Div)),
+        Tok::Punct(P::Percent) => Some(BinaryOp::Arith(ArithOpKind::Mod)),
+        Tok::Punct(P::LeftLeftChevron) => Some(BinaryOp::Arith(ArithOpKind::Shl)),
+        Tok::Punct(P::RightRightChevron) => Some(BinaryOp::Arith(ArithOpKind::Shr)),
+        Tok::Punct(P::Ampersand) => Some(BinaryOp::Arith(ArithOpKind::BitAnd)),
+        Tok::Punct(P::Caret) => Some(BinaryOp::Arith(ArithOpKind::BitXor)),
+        Tok::Punct(P::Pipe) => Some(BinaryOp::Arith(ArithOpKind::BitOr)),
+        // logical operators
+        Tok::Punct(P::AmpersandAmpersand) => Some(BinaryOp::LogicalAnd),
+        Tok::Punct(P::PipePipe) => Some(BinaryOp::LogicalOr),
+        // assignment
+        Tok::Punct(P::Eq) => Some(BinaryOp::Assign(None)),
+        Tok::Punct(P::PlusEq) => Some(BinaryOp::Assign(Some(ArithOpKind::Add))),
+        Tok::Punct(P::MinusEq) => Some(BinaryOp::Assign(Some(ArithOpKind::Sub))),
+        Tok::Punct(P::AsteriskEq) => Some(BinaryOp::Assign(Some(ArithOpKind::Mul))),
+        Tok::Punct(P::SlashEq) => Some(BinaryOp::Assign(Some(ArithOpKind::Div))),
+        Tok::Punct(P::PercentEq) => Some(BinaryOp::Assign(Some(ArithOpKind::Mod))),
+        Tok::Punct(P::LeftLeftChevronEq) => Some(BinaryOp::Assign(Some(ArithOpKind::Shl))),
+        Tok::Punct(P::RightRightChevronEq) => Some(BinaryOp::Assign(Some(ArithOpKind::Shr))),
+        Tok::Punct(P::AmpersandEq) => Some(BinaryOp::Assign(Some(ArithOpKind::BitAnd))),
+        Tok::Punct(P::CaretEq) => Some(BinaryOp::Assign(Some(ArithOpKind::BitXor))),
+        Tok::Punct(P::PipeEq) => Some(BinaryOp::Assign(Some(ArithOpKind::BitOr))),
+        // comparison
+        Tok::Punct(P::LeftChevron) => Some(BinaryOp::Comparison(ComparisonKind::Lt)),
+        Tok::Punct(P::RightChevron) => Some(BinaryOp::Comparison(ComparisonKind::Gt)),
+        Tok::Punct(P::LeftChevronEq) => Some(BinaryOp::Comparison(ComparisonKind::LtEq)),
+        Tok::Punct(P::RightChevronEq) => Some(BinaryOp::Comparison(ComparisonKind::GtEq)),
+        Tok::Punct(P::EqEq) => Some(BinaryOp::Comparison(ComparisonKind::Eq)),
+        Tok::Punct(P::BangEq) => Some(BinaryOp::Comparison(ComparisonKind::Neq)),
         _ => None,
     }
 }
