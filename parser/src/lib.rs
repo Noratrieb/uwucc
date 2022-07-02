@@ -62,7 +62,11 @@ pub fn parse_file(src: &str) {
     let declarations = parser::parse_declarations(lexer);
     match declarations {
         Ok(declarations) => {
-            dbg_pls::color!(declarations);
+            dbg_pls::color!(&declarations);
+            let mut printer = pretty::PrettyPrinter::new(std::io::stdout().lock(), false);
+            println!("// START CODE  -------------------");
+            printer.translation_unit(&declarations).unwrap();
+            println!("// END CODE    -------------------");
         }
         Err(err) => eprintln!("error :(\n{:#?}", err),
     }

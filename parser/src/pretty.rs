@@ -60,27 +60,33 @@ impl<W: Write> PrettyPrinter<W> {
     fn external_decl(&mut self, decl: &ExternalDecl) -> Result {
         match decl {
             ExternalDecl::FunctionDef(def) => self.function_def(def),
-            ExternalDecl::Decl(decl) => self.decl(decl),
+            ExternalDecl::Decl(decl) => self.decl(decl, false),
         }
     }
 
     fn function_def(&mut self, def: &FunctionDef) -> Result {
-        self.decl(&def.decl)?;
+        self.decl(&def.decl, true)?;
         self.string(" {")?;
-        self.indent();
         self.linebreak()?;
+        self.indent();
         // TODO: body
         self.dedent();
+        self.string("}")?;
         self.linebreak()?;
 
         Ok(())
     }
 
-    fn decl(&mut self, decl: &Decl) -> Result {
+    fn decl(&mut self, decl: &Decl, func: bool) -> Result {
         match decl {
             Decl::StaticAssert => todo!(),
-            Decl::Normal(normal_decl) => self.normal_decl(normal_decl),
+            Decl::Normal(normal_decl) => self.normal_decl(normal_decl)?,
         }
+        if !func {
+            self.string(";")?;
+            self.linebreak()?;
+        }
+        Ok(())
     }
 
     fn normal_decl(&mut self, decl: &NormalDecl) -> Result {
@@ -99,9 +105,8 @@ impl<W: Write> PrettyPrinter<W> {
     }
 
     fn decl_spec(&mut self, decl_spec: &DeclSpec) -> Result {
-        self.type_specifier(&decl_spec.ty)?;
-        self.string(" ")?;
         self.decl_attr(&decl_spec.attrs)?;
+        self.type_specifier(&decl_spec.ty)?;
         Ok(())
     }
 
@@ -142,7 +147,9 @@ impl<W: Write> PrettyPrinter<W> {
             attrs.push("_Thread_local");
         }
         self.string(&attrs.join(" "))?;
-        self.string(" ")?;
+        if !attrs.is_empty() {
+            self.string(" ")?;
+        }
 
         Ok(())
     }
@@ -176,6 +183,7 @@ impl<W: Write> PrettyPrinter<W> {
             }
             first = false;
             self.decl_spec(&decl.decl_spec.0)?;
+            self.string(" ")?;
             self.declarator(&decl.declarator.0)?;
         }
         Ok(())

@@ -9,6 +9,14 @@ fn lex_and_pre(src: &str) -> impl Iterator<Item = (Tok<'_>, Span)> + '_ {
 fn pretty_print(ast: &Result<Vec<Spanned<ExternalDecl>>, ParserError>) -> String {
     let mut vec = Vec::new();
 
+    match ast {
+        Ok(ast) => {
+            let mut printer = crate::pretty::PrettyPrinter::new(&mut vec, true);
+            printer.translation_unit(ast).unwrap();
+        }
+        Err(err) => vec.extend_from_slice(format!("{err:?}").as_bytes()),
+    }
+
     String::from_utf8_lossy(&vec).into_owned()
 }
 
