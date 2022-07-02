@@ -32,5 +32,5 @@ expression: "(parsed_pretty, pretty_printed_source)"
             1..14,
         ),
     ]),
-    "",
+    "void uwu() {\n}\n",
 )

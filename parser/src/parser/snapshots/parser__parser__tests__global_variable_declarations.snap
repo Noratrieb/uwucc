@@ -87,5 +87,5 @@ expression: "(parsed_pretty, pretty_printed_source)"
             64..76,
         ),
     ]),
-    "",
+    "int test;\n_Thread_local double uwu, owo;\nint function();\n",
 )

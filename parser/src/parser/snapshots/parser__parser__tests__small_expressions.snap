@@ -102,5 +102,5 @@ expression: "(parsed_pretty, pretty_printed_source)"
             41..46,
         ),
     ]),
-    "",
+    "int x = (1 + 1);\nint y = (1 + (2 - 3));\nint z = array[9];\n",
 )
