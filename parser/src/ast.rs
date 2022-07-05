@@ -5,13 +5,15 @@ use dbg_pls::DebugPls;
 
 use crate::Spanned;
 
+pub type Ident = Spanned<String>;
+
 //
 // --- Expr
 //
 
 #[derive(Debug, DebugPls)]
 pub enum Atom {
-    Ident(String),
+    Ident(Ident),
     Int(i128),
     Float(f64),
     String(String),
@@ -84,6 +86,38 @@ pub enum Expr {
 }
 
 //
+// --- Statements
+//
+
+#[derive(Debug, DebugPls)]
+pub enum Stmt {
+    Labeled(Box<Spanned<Stmt>>),
+    Compound(Vec<Spanned<Stmt>>),
+    If {
+        cond: Expr,
+        then: Vec<Spanned<Stmt>>,
+        otherwise: Option<Vec<Spanned<Stmt>>>,
+    },
+    Switch,
+    While {
+        cond: Expr,
+        body: Vec<Spanned<Stmt>>,
+    },
+    For {
+        init_decl: Option<Spanned<Decl>>,
+        init_expr: Option<Spanned<Expr>>,
+        cond: Option<Spanned<Expr>>,
+        post: Option<Spanned<Expr>>,
+        body: Vec<Spanned<Stmt>>,
+    },
+    Goto(Ident),
+    Continue,
+    Break,
+    Return(Option<Spanned<Expr>>),
+    Expr(Expr),
+}
+
+//
 // --- Types and decls and garbage whatever
 //
 
@@ -106,8 +140,6 @@ pub enum TypeSpecifier {
     // enum-specifier
     // typedef-name
 }
-
-pub type Ident = Spanned<String>;
 
 bitflags! {
     pub struct DeclAttr: u8 {
@@ -174,7 +206,7 @@ pub struct Declarator {
 #[derive(Debug, DebugPls)]
 pub struct FunctionDef {
     pub decl: Decl,
-    pub body: Vec<()>,
+    pub body: Vec<Stmt>,
 }
 
 #[derive(Debug, DebugPls)]

@@ -184,9 +184,9 @@ mod powers {
     pub const SHIFT: (u8, u8) = (21, 22);
     pub const ADD_SUB: (u8, u8) = (23, 24);
     pub const MUL_DIV_MOD: (u8, u8) = (25, 26);
-    pub const CAST: (u8, u8) = (27, 28);
-    pub const UNARY_OPERATOR: u8 = 29;
-    pub const POSTFIX: u8 = 30;
+    pub const CAST: u8 = 27;
+    pub const UNARY_OPERATOR: u8 = 28;
+    pub const POSTFIX: u8 = 29;
 }
 
 fn prefix_binding_power(tok: &Tok<'_>) -> u8 {
