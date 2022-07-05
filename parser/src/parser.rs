@@ -4,7 +4,8 @@ use peekmore::PeekMoreIterator;
 use crate::{
     ast::{
         Decl, DeclAttr, DeclSpec, Declarator, DirectDeclarator, ExternalDecl, FunctionDef,
-        FunctionParamDecl, Ident, InitDecl, NormalDecl, TypeSpecifier,
+        FunctionParamDecl, Ident, InitDecl, IntTy, IntTyKind, IntTySignedness, NormalDecl,
+        TypeSpecifier,
     },
     pre::Punctuator as Punct,
     token::{Keyword as Kw, Token as Tok},
@@ -282,27 +283,92 @@ where
     }
 
     fn type_specifier(&mut self) -> Result<Spanned<TypeSpecifier>> {
-        let (token, span) = self.next_t()?;
-        let ty = match token {
-            Tok::Kw(Kw::Void) => TypeSpecifier::Void,
-            Tok::Kw(Kw::Char) => TypeSpecifier::Char,
-            Tok::Kw(Kw::Short) => TypeSpecifier::Short,
-            Tok::Kw(Kw::Int) => TypeSpecifier::Int,
-            Tok::Kw(Kw::Long) => TypeSpecifier::Long,
-            Tok::Kw(Kw::Float) => TypeSpecifier::Float,
-            Tok::Kw(Kw::Double) => TypeSpecifier::Double,
-            Tok::Kw(Kw::Signed) => TypeSpecifier::Int,
-            Tok::Kw(Kw::Unsigned) => TypeSpecifier::UInt,
-            Tok::Kw(Kw::Bool) => TypeSpecifier::Bool,
-            Tok::Kw(Kw::Complex) => {
-                return Err(ParserError::new(
-                    span,
-                    "tf are you doing with complex numbers".to_string(),
-                ))
-            }
-            tok => return Err(ParserError::new(span, format!("Invalid token: `{tok}`"))),
-        };
-        Ok((ty, span))
+        // todo: less shit code and better span handling
+        let mut signedness = None;
+
+        loop {
+            let (token, span) = self.next_t()?;
+            let ty = match token {
+                Tok::Kw(Kw::Void) => TypeSpecifier::Void,
+                Tok::Kw(Kw::Char) => match signedness {
+                    Some(IntTySignedness::Signed) => TypeSpecifier::SChar,
+                    Some(IntTySignedness::Unsigned) => TypeSpecifier::UChar,
+                    None => TypeSpecifier::Char,
+                },
+                Tok::Kw(Kw::Short) => {
+                    eat!(self, Tok::Kw(Kw::Int));
+                    TypeSpecifier::Integer(IntTy {
+                        sign: signedness.unwrap_or_default(),
+                        kind: IntTyKind::Short,
+                    })
+                }
+                Tok::Kw(Kw::Int) => TypeSpecifier::Integer(IntTy {
+                    sign: signedness.unwrap_or_default(),
+                    kind: IntTyKind::Int,
+                }),
+                Tok::Kw(Kw::Long) => {
+                    if let Some(_) = eat!(self, Tok::Kw(Kw::Long)) {
+                        eat!(self, Tok::Kw(Kw::Int));
+                        TypeSpecifier::Integer(IntTy {
+                            sign: signedness.unwrap_or_default(),
+                            kind: IntTyKind::LongLong,
+                        })
+                    } else {
+                        eat!(self, Tok::Kw(Kw::Int));
+                        TypeSpecifier::Integer(IntTy {
+                            sign: signedness.unwrap_or_default(),
+                            kind: IntTyKind::Long,
+                        })
+                    }
+                }
+                Tok::Kw(Kw::Signed) => {
+                    if signedness.is_some() {
+                        return Err(ParserError::new(
+                            span,
+                            "cannot specify signedness twice".to_string(),
+                        ));
+                    }
+                    if let Ok((Tok::Kw(Kw::Char | Kw::Short|  Kw::Int | Kw::Long), _)) = self.peek_t() {
+                        // the signed is an integer qualifier
+                        signedness = Some(IntTySignedness::Signed);
+                        continue;
+                    }
+                    TypeSpecifier::Integer(IntTy {
+                        sign: IntTySignedness::Signed,
+                        kind: IntTyKind::Int,
+                    })
+                }
+                Tok::Kw(Kw::Unsigned) => {
+                    if signedness.is_some() {
+                        return Err(ParserError::new(
+                            span,
+                            "cannot specify signedness twice".to_string(),
+                        ));
+                    }
+                    if let Ok((Tok::Kw(Kw::Char | Kw::Short|  Kw::Int | Kw::Long), _)) = self.peek_t() {
+                        // the unsigned is an integer qualifier
+                        signedness = Some(IntTySignedness::Unsigned);
+                        continue;
+                    }
+                    TypeSpecifier::Integer(IntTy {
+                        sign: IntTySignedness::Unsigned,
+                        kind: IntTyKind::Int,
+                    })
+                }
+                Tok::Kw(Kw::Float) => TypeSpecifier::Float,
+                Tok::Kw(Kw::Double) => TypeSpecifier::Double,
+                Tok::Kw(Kw::Bool) => TypeSpecifier::Bool,
+                Tok::Kw(Kw::Complex) => {
+                    return Err(ParserError::new(
+                        span,
+                        "tf are you doing with complex numbers".to_string(),
+                    ))
+                }
+                tok => return Err(ParserError::new(span, format!("Invalid token: `{tok}`"))),
+            };
+
+            break Ok((ty, span));
+        }
     }
 
     /// (6.7.6) declarator:

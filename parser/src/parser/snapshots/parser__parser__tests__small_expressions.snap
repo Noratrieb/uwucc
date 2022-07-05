@@ -8,7 +8,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Int,
+                        ty: Integer(IntTy { sign: Signed, kind: Int }),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -38,7 +38,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Int,
+                        ty: Integer(IntTy { sign: Signed, kind: Int }),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -75,7 +75,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Int,
+                        ty: Integer(IntTy { sign: Signed, kind: Int }),
                         attrs: "(empty)",
                     },
                     init_declarators: [

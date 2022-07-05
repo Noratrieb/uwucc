@@ -6,7 +6,8 @@ use crate::{
     ast::{
         ArithOpKind, Atom, BinaryOp, ComparisonKind, Decl, DeclAttr, DeclSpec, Declarator,
         DirectDeclarator, Expr, ExprBinary, ExprUnary, ExternalDecl, FunctionDef,
-        FunctionParamDecl, InitDecl, NormalDecl, TypeSpecifier, UnaryOp,
+        FunctionParamDecl, InitDecl, IntTyKind, IntTySignedness, NormalDecl, TypeSpecifier,
+        UnaryOp,
     },
     Spanned,
 };
@@ -120,24 +121,29 @@ impl<W: Write> PrettyPrinter<W> {
     }
 
     fn type_specifier(&mut self, spec: &TypeSpecifier) -> Result {
-        self.string(match spec {
-            TypeSpecifier::Void => "void",
-            TypeSpecifier::Char => "char",
-            TypeSpecifier::SChar => "signed char",
-            TypeSpecifier::UChar => "unsigned char",
-            TypeSpecifier::Short => "short",
-            TypeSpecifier::UShort => "usigned short",
-            TypeSpecifier::Int => "int",
-            TypeSpecifier::UInt => "unsugned int",
-            TypeSpecifier::Long => "long",
-            TypeSpecifier::ULong => "unsigned long",
-            TypeSpecifier::LongLong => "long",
-            TypeSpecifier::ULongLong => "unsigned long long",
-            TypeSpecifier::Float => "float",
-            TypeSpecifier::Double => "double",
-            TypeSpecifier::LongDouble => "long double",
-            TypeSpecifier::Bool => "_Bool",
-        })
+        match spec {
+            TypeSpecifier::Void => self.string("void"),
+            TypeSpecifier::Char => self.string("char"),
+            TypeSpecifier::SChar => self.string("signed char"),
+            TypeSpecifier::UChar => self.string("unsigned char"),
+            TypeSpecifier::Integer(int) => {
+                // prefix the unsignedness if desired
+                if let IntTySignedness::Unsigned = int.sign {
+                    self.string("unsigned ")?;
+                }
+
+                match int.kind {
+                    IntTyKind::Short => self.string("short"),
+                    IntTyKind::Int => self.string("int"),
+                    IntTyKind::Long => self.string("long"),
+                    IntTyKind::LongLong => self.string("long long"),
+                }
+            }
+            TypeSpecifier::Float => self.string("float"),
+            TypeSpecifier::Double => self.string("double"),
+            TypeSpecifier::LongDouble => self.string("long double"),
+            TypeSpecifier::Bool => self.string("_Bool"),
+        }
     }
 
     fn decl_attr(&mut self, attr: &DeclAttr) -> Result {

@@ -122,19 +122,39 @@ pub enum Stmt {
 //
 
 #[derive(Debug, DebugPls)]
+pub enum IntTySignedness {
+    Signed,
+    Unsigned,
+}
+
+impl Default for IntTySignedness {
+    fn default() -> Self {
+        // C defaults to unsigned for integers.
+        Self::Signed
+    }
+}
+
+#[derive(Debug, DebugPls)]
+pub enum IntTyKind {
+    Short,
+    Int,
+    Long,
+    LongLong,
+}
+
+#[derive(Debug, DebugPls)]
+pub struct IntTy {
+    pub sign: IntTySignedness,
+    pub kind: IntTyKind,
+}
+
+#[derive(Debug, DebugPls)]
 pub enum TypeSpecifier {
     Void,
     Char,
     SChar,
     UChar,
-    Short,
-    UShort,
-    Int,
-    UInt,
-    Long,
-    ULong,
-    LongLong,
-    ULongLong,
+    Integer(IntTy),
     Float,
     Double,
     LongDouble,

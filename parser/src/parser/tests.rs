@@ -83,3 +83,41 @@ int z = (array[9]);
     "#
     );
 }
+
+#[test]
+fn integer_types() {
+    parse_test!(
+        r#"
+         char          a = 1;
+signed   char          b = 2;
+unsigned char          c = 3;
+
+         short         d = 4;
+signed   short         e = 6;
+         short     int f = 5;
+signed   short     int g = 7;
+unsigned short         h = 8;
+unsigned short     int i = 9;
+
+signed                 j = 10;
+                   int k = 11;
+signed             int l = 12;
+unsigned               m = 13;
+unsigned           int n = 14;
+
+         long          o = 15;
+signed   long          p = 16;
+         long      int q = 17;
+signed   long      int r = 18;
+unsigned long          s = 19;
+unsigned long      int t = 20;
+
+         long long     u = 21;
+signed   long long     v = 22;
+         long long int w = 23;
+signed   long long int x = 24;
+unsigned long long     y = 25;
+unsigned long long int z = 26;
+    "#
+    );
+}

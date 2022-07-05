@@ -1,0 +1,637 @@
+---
+source: parser/src/parser/tests.rs
+expression: "(parsed_pretty, pretty_printed_source)"
+---
+(
+    Ok([
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Char,
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("a", 24..25)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(1)), 28..29)),
+                            },
+                            24..25,
+                        ),
+                    ],
+                }),
+            ),
+            10..25,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: SChar,
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("b", 54..55)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(2)), 58..59)),
+                            },
+                            54..55,
+                        ),
+                    ],
+                }),
+            ),
+            31..55,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: UChar,
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("c", 84..85)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(3)), 88..89)),
+                            },
+                            84..85,
+                        ),
+                    ],
+                }),
+            ),
+            61..85,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Short }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("d", 115..116)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(4)), 119..120)),
+                            },
+                            115..116,
+                        ),
+                    ],
+                }),
+            ),
+            101..116,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Short }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("e", 145..146)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(6)), 149..150)),
+                            },
+                            145..146,
+                        ),
+                    ],
+                }),
+            ),
+            122..146,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Short }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("f", 175..176)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(5)), 179..180)),
+                            },
+                            175..176,
+                        ),
+                    ],
+                }),
+            ),
+            161..176,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Short }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("g", 205..206)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(7)), 209..210)),
+                            },
+                            205..206,
+                        ),
+                    ],
+                }),
+            ),
+            182..206,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy {
+                            sign: Unsigned,
+                            kind: Short,
+                        }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("h", 235..236)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(8)), 239..240)),
+                            },
+                            235..236,
+                        ),
+                    ],
+                }),
+            ),
+            212..236,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy {
+                            sign: Unsigned,
+                            kind: Short,
+                        }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("i", 265..266)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(9)), 269..270)),
+                            },
+                            265..266,
+                        ),
+                    ],
+                }),
+            ),
+            242..266,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("j", 296..297)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(10)), 300..302)),
+                            },
+                            296..297,
+                        ),
+                    ],
+                }),
+            ),
+            273..297,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("k", 327..328)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(11)), 331..333)),
+                            },
+                            327..328,
+                        ),
+                    ],
+                }),
+            ),
+            323..328,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("l", 358..359)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(12)), 362..364)),
+                            },
+                            358..359,
+                        ),
+                    ],
+                }),
+            ),
+            335..359,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Unsigned, kind: Int }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("m", 389..390)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(13)), 393..395)),
+                            },
+                            389..390,
+                        ),
+                    ],
+                }),
+            ),
+            366..390,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Unsigned, kind: Int }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("n", 420..421)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(14)), 424..426)),
+                            },
+                            420..421,
+                        ),
+                    ],
+                }),
+            ),
+            397..421,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Long }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("o", 452..453)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(15)), 456..458)),
+                            },
+                            452..453,
+                        ),
+                    ],
+                }),
+            ),
+            438..453,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Long }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("p", 483..484)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(16)), 487..489)),
+                            },
+                            483..484,
+                        ),
+                    ],
+                }),
+            ),
+            460..484,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Long }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("q", 514..515)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(17)), 518..520)),
+                            },
+                            514..515,
+                        ),
+                    ],
+                }),
+            ),
+            500..515,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Long }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("r", 545..546)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(18)), 549..551)),
+                            },
+                            545..546,
+                        ),
+                    ],
+                }),
+            ),
+            522..546,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy {
+                            sign: Unsigned,
+                            kind: Long,
+                        }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("s", 576..577)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(19)), 580..582)),
+                            },
+                            576..577,
+                        ),
+                    ],
+                }),
+            ),
+            553..577,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy {
+                            sign: Unsigned,
+                            kind: Long,
+                        }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("t", 607..608)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(20)), 611..613)),
+                            },
+                            607..608,
+                        ),
+                    ],
+                }),
+            ),
+            584..608,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy {
+                            sign: Signed,
+                            kind: LongLong,
+                        }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("u", 639..640)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(21)), 643..645)),
+                            },
+                            639..640,
+                        ),
+                    ],
+                }),
+            ),
+            625..640,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy {
+                            sign: Signed,
+                            kind: LongLong,
+                        }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("v", 670..671)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(22)), 674..676)),
+                            },
+                            670..671,
+                        ),
+                    ],
+                }),
+            ),
+            647..671,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy {
+                            sign: Signed,
+                            kind: LongLong,
+                        }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("w", 701..702)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(23)), 705..707)),
+                            },
+                            701..702,
+                        ),
+                    ],
+                }),
+            ),
+            687..702,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy {
+                            sign: Signed,
+                            kind: LongLong,
+                        }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("x", 732..733)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(24)), 736..738)),
+                            },
+                            732..733,
+                        ),
+                    ],
+                }),
+            ),
+            709..733,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy {
+                            sign: Unsigned,
+                            kind: LongLong,
+                        }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("y", 763..764)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(25)), 767..769)),
+                            },
+                            763..764,
+                        ),
+                    ],
+                }),
+            ),
+            740..764,
+        ),
+        (
+            Decl(
+                Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy {
+                            sign: Unsigned,
+                            kind: LongLong,
+                        }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: Ident(("z", 794..795)),
+                                    pointer: false,
+                                },
+                                init: Some((Atom(Int(26)), 798..800)),
+                            },
+                            794..795,
+                        ),
+                    ],
+                }),
+            ),
+            771..795,
+        ),
+    ]),
+    "char a = 1;\nsigned char b = 2;\nunsigned char c = 3;\nshort d = 4;\nshort e = 6;\nshort f = 5;\nshort g = 7;\nunsigned short h = 8;\nunsigned short i = 9;\nint j = 10;\nint k = 11;\nint l = 12;\nunsigned int m = 13;\nunsigned int n = 14;\nlong o = 15;\nlong p = 16;\nlong q = 17;\nlong r = 18;\nunsigned long s = 19;\nunsigned long t = 20;\nlong long u = 21;\nlong long v = 22;\nlong long w = 23;\nlong long x = 24;\nunsigned long long y = 25;\nunsigned long long z = 26;\n",
+)
