@@ -291,8 +291,8 @@ where
             Tok::Kw(Kw::Long) => TypeSpecifier::Long,
             Tok::Kw(Kw::Float) => TypeSpecifier::Float,
             Tok::Kw(Kw::Double) => TypeSpecifier::Double,
-            Tok::Kw(Kw::Signed) => TypeSpecifier::Signed,
-            Tok::Kw(Kw::Unsigned) => TypeSpecifier::Unsigned,
+            Tok::Kw(Kw::Signed) => TypeSpecifier::Int,
+            Tok::Kw(Kw::Unsigned) => TypeSpecifier::UInt,
             Tok::Kw(Kw::Bool) => TypeSpecifier::Bool,
             Tok::Kw(Kw::Complex) => {
                 return Err(ParserError::new(

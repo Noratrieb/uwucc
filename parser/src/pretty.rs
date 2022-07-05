@@ -123,15 +123,20 @@ impl<W: Write> PrettyPrinter<W> {
         self.string(match spec {
             TypeSpecifier::Void => "void",
             TypeSpecifier::Char => "char",
+            TypeSpecifier::SChar => "signed char",
+            TypeSpecifier::UChar => "unsigned char",
             TypeSpecifier::Short => "short",
+            TypeSpecifier::UShort => "usigned short",
             TypeSpecifier::Int => "int",
+            TypeSpecifier::UInt => "unsugned int",
             TypeSpecifier::Long => "long",
+            TypeSpecifier::ULong => "unsigned long",
+            TypeSpecifier::LongLong => "long",
+            TypeSpecifier::ULongLong => "unsigned long long",
             TypeSpecifier::Float => "float",
             TypeSpecifier::Double => "double",
-            TypeSpecifier::Signed => "signed",
-            TypeSpecifier::Unsigned => "unsigned",
+            TypeSpecifier::LongDouble => "long double",
             TypeSpecifier::Bool => "_Bool",
-            TypeSpecifier::Complex => "_Complex",
         })
     }
 
@@ -192,7 +197,7 @@ impl<W: Write> PrettyPrinter<W> {
     fn expr(&mut self, expr: &Expr) -> Result {
         match expr {
             Expr::Atom(atom) => match atom {
-                Atom::Ident(ident) => self.string(ident),
+                Atom::Ident((ident, _)) => self.string(ident),
                 Atom::Int(int) => write!(self.output, "{}", int),
                 Atom::Float(float) => write!(self.output, "{}", float),
                 Atom::String(string) => {

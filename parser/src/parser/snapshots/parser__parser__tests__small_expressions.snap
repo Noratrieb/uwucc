@@ -87,7 +87,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                                 },
                                 init: Some((
                                     Binary(ExprBinary {
-                                        lhs: (Atom(Ident("array")), 50..55),
+                                        lhs: (Atom(Ident(("array", 50..55))), 50..55),
                                         rhs: (Atom(Int(9)), 56..57),
                                         op: Index,
                                     }),

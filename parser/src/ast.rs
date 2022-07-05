@@ -125,16 +125,22 @@ pub enum Stmt {
 pub enum TypeSpecifier {
     Void,
     Char,
+    SChar,
+    UChar,
     Short,
+    UShort,
     Int,
+    UInt,
     Long,
+    ULong,
+    LongLong,
+    ULongLong,
     Float,
     Double,
-    Signed,
-    Unsigned,
+    LongDouble,
     Bool,
-    Complex,
     // TODO
+    // complex
     // atomic-type-specifier
     // struct-or-union-specifier
     // enum-specifier
