@@ -4,10 +4,10 @@ use peekmore::PeekMoreIterator;
 use crate::{
     ast::{
         Decl, DeclAttr, DeclSpec, Declarator, DirectDeclarator, ExternalDecl, FunctionDef,
-        FunctionParamDecl, Ident, InitDecl, IntTy, IntTyKind, IntTySignedness, NormalDecl,
+        FunctionParamDecl, Ident, InitDecl, IntTy, IntTyKind, IntTySignedness, NormalDecl, Stmt,
         TypeSpecifier,
     },
-    pre::Punctuator as Punct,
+    pre::Punctuator as P,
     token::{Keyword as Kw, Token as Tok},
     Span, Spanned,
 };
@@ -109,10 +109,7 @@ fn is_tok_start_of_ty(tok: &Tok<'_>) -> bool {
 
 /// Can be called for the start of a sequence of tokens that could be a type.
 fn is_tok_start_of_declarator(tok: &Tok<'_>) -> bool {
-    matches!(
-        tok,
-        Tok::Ident(_) | Tok::Punct(Punct::ParenOpen | Punct::Asterisk)
-    )
+    matches!(tok, Tok::Ident(_) | Tok::Punct(P::ParenOpen | P::Asterisk))
 }
 
 impl<'src, I> Parser<'src, I>
@@ -164,7 +161,7 @@ where
     }
 
     fn is_peek_comma(&mut self) -> bool {
-        matches!(self.peek_t(), Ok((Tok::Punct(Punct::Comma), _)))
+        matches!(self.peek_t(), Ok((Tok::Punct(P::Comma), _)))
     }
 
     // -----------------------
@@ -174,6 +171,8 @@ where
     /// (6.7) declaration:
     ///     declaration-specifiers init-declarator-list.opt ;
     ///     static_assert-declaration
+    /// 
+    /// This does NOT eat the semicolon!
     fn declaration(&mut self) -> Result<Spanned<Decl>> {
         if let Some((tok, span)) = eat!(self, Tok::Kw(Kw::StaticAssert)) {
             return Err(ParserError::unsupported(span, &tok));
@@ -202,17 +201,18 @@ where
     /// init-declarator:
     ///     declarator
     ///     declarator = initializer
+    /// 
     fn init_declarator_list(&mut self) -> Result<Vec<Spanned<InitDecl>>> {
         let mut init_decls = Vec::new();
         let mut first = true;
         while self.is_peek_tok_start_of_declarator() || self.is_peek_comma() {
             if !first {
-                expect!(self, Tok::Punct(Punct::Comma));
+                expect!(self, Tok::Punct(P::Comma));
             }
             first = false;
 
             let (declarator, span) = self.declarator()?;
-            let init = if eat!(self, Tok::Punct(Punct::Eq)).is_some() {
+            let init = if eat!(self, Tok::Punct(P::Eq)).is_some() {
                 let expr = self.expr()?;
                 Some(expr)
             } else {
@@ -328,7 +328,9 @@ where
                             "cannot specify signedness twice".to_string(),
                         ));
                     }
-                    if let Ok((Tok::Kw(Kw::Char | Kw::Short|  Kw::Int | Kw::Long), _)) = self.peek_t() {
+                    if let Ok((Tok::Kw(Kw::Char | Kw::Short | Kw::Int | Kw::Long), _)) =
+                        self.peek_t()
+                    {
                         // the signed is an integer qualifier
                         signedness = Some(IntTySignedness::Signed);
                         continue;
@@ -345,7 +347,9 @@ where
                             "cannot specify signedness twice".to_string(),
                         ));
                     }
-                    if let Ok((Tok::Kw(Kw::Char | Kw::Short|  Kw::Int | Kw::Long), _)) = self.peek_t() {
+                    if let Ok((Tok::Kw(Kw::Char | Kw::Short | Kw::Int | Kw::Long), _)) =
+                        self.peek_t()
+                    {
                         // the unsigned is an integer qualifier
                         signedness = Some(IntTySignedness::Unsigned);
                         continue;
@@ -378,7 +382,7 @@ where
     /// facing. For example: `int uwu` vs `int uwu()`. The parentheses indicate a function
     /// declaration. Therefore, we have no idea what we're parsing before entering this function.
     fn declarator(&mut self) -> Result<Spanned<Declarator>> {
-        let pointer_span = if let Some((_, span)) = eat!(self, Tok::Punct(Punct::Asterisk)) {
+        let pointer_span = if let Some((_, span)) = eat!(self, Tok::Punct(P::Asterisk)) {
             Some(span)
         } else {
             None
@@ -408,14 +412,14 @@ where
     fn direct_declarator(&mut self) -> Result<Spanned<DirectDeclarator>> {
         let (ident, span) = self.ident()?;
 
-        if (eat!(self, Tok::Punct(Punct::ParenOpen))).is_some() {
+        if (eat!(self, Tok::Punct(P::ParenOpen))).is_some() {
             let mut params = Vec::new();
             let mut first = true;
 
             while self.is_peek_tok_start_of_ty() || self.is_peek_comma() {
                 if first {
                     // the wrong way around because borrowing
-                    if let (Tok::Punct(Punct::ParenClose), _) = self.peek_t_n(1)? {
+                    if let (Tok::Punct(P::ParenClose), _) = self.peek_t_n(1)? {
                         if let &(ref tok @ Tok::Kw(Kw::Void), span) = self.peek_t()? {
                             return Err(ParserError::unsupported(span, tok));
                         }
@@ -423,7 +427,7 @@ where
                 }
 
                 if !first {
-                    expect!(self, Tok::Punct(Punct::Comma));
+                    expect!(self, Tok::Punct(P::Comma));
                 }
                 first = false;
 
@@ -439,7 +443,7 @@ where
             }
 
             // nothing in the params supported yet.
-            expect!(self, Tok::Punct(Punct::ParenClose));
+            expect!(self, Tok::Punct(P::ParenClose));
             return Ok((
                 DirectDeclarator::WithParams {
                     ident: (ident, span),
@@ -453,6 +457,57 @@ where
     }
 
     // -----------------------
+    // Statements
+    // -----------------------
+
+    /// (6.8.2) block-item:
+    ///     declaration
+    ///     statement
+    ///
+    /// (6.8) statement:
+    ///     labeled-statement
+    ///     compound-statement
+    ///     expression-statement
+    ///     selection-statement
+    ///     iteration-statement
+    ///     jump-statement
+    fn statement(&mut self) -> Result<Spanned<Stmt>> {
+        if self.is_peek_tok_start_of_ty() {
+            let (decl, span) = self.declaration()?;
+            let span2 = expect!(self, Tok::Punct(P::Semicolon));
+            return Ok((Stmt::Decl(decl), span.extend(span2)));
+        }
+        todo!()
+    }
+
+    /// (6.8.2) compound-statement:
+    ///     { block-item-listopt }
+    ///
+    /// The leading `{` must already have been eaten
+    fn compound_statement(&mut self, brace_span: Span) -> Result<Spanned<Vec<Spanned<Stmt>>>> {
+        let mut stmts = Vec::new();
+        let end_span = loop {
+            // the end of the block
+            if let Some((_, span)) = eat!(self, Tok::Punct(P::BraceClose)) {
+                break span;
+            }
+
+            // Empty expression statements
+            // (6.8.3) expression-statement:
+            //      expression.opt ;
+            if eat!(self, Tok::Punct(P::Semicolon)).is_some() {
+                continue;
+            }
+
+            // TODO: recover here
+            let stmt = self.statement()?;
+
+            stmts.push(stmt);
+        };
+        Ok((stmts, brace_span.extend(end_span)))
+    }
+
+    // -----------------------
     // External definitions
     // -----------------------
 
@@ -463,18 +518,18 @@ where
         let (declaration, span) = self.declaration()?;
 
         // the declaration might be a function definition
-        if eat!(self, Tok::Punct(Punct::BraceOpen)).is_some() {
-            let span2 = expect!(self, Tok::Punct(Punct::BraceClose));
+        if let Some((_, brace_span)) = eat!(self, Tok::Punct(P::BraceOpen)) {
+            let (body, span2) = self.compound_statement(brace_span)?;
 
             Ok((
                 ExternalDecl::FunctionDef(FunctionDef {
                     decl: declaration,
-                    body: Vec::new(),
+                    body,
                 }),
                 span.extend(span2),
             ))
         } else {
-            expect!(self, Tok::Punct(Punct::Semicolon));
+            expect!(self, Tok::Punct(P::Semicolon));
             Ok((ExternalDecl::Decl(declaration), span))
         }
     }
@@ -482,6 +537,7 @@ where
     fn external_declarations(&mut self) -> Result<Vec<Spanned<ExternalDecl>>> {
         let mut decls = Vec::new();
         while self.peek_t().is_ok() {
+            // TODO recover
             let decl = self.external_declaration()?;
             decls.push(decl);
         }

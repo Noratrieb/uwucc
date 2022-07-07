@@ -1,0 +1,90 @@
+---
+source: parser/src/parser/tests.rs
+expression: "(parsed_pretty, pretty_printed_source)"
+---
+(
+    Ok([
+        (
+            FunctionDef(FunctionDef {
+                decl: Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: WithParams {
+                                        ident: ("main", 5..9),
+                                        params: [],
+                                    },
+                                    pointer: false,
+                                },
+                                init: None,
+                            },
+                            5..9,
+                        ),
+                    ],
+                }),
+                body: [
+                    (
+                        Decl(
+                            Normal(NormalDecl {
+                                decl_spec: DeclSpec {
+                                    ty: Integer(IntTy { sign: Signed, kind: Int }),
+                                    attrs: "(empty)",
+                                },
+                                init_declarators: [
+                                    (
+                                        InitDecl {
+                                            declarator: Declarator {
+                                                decl: Ident(("i", 22..23)),
+                                                pointer: false,
+                                            },
+                                            init: Some((Atom(Int(0)), 26..27)),
+                                        },
+                                        22..23,
+                                    ),
+                                ],
+                            }),
+                        ),
+                        18..28,
+                    ),
+                    (
+                        Decl(
+                            Normal(NormalDecl {
+                                decl_spec: DeclSpec {
+                                    ty: Float,
+                                    attrs: "(empty)",
+                                },
+                                init_declarators: [
+                                    (
+                                        InitDecl {
+                                            declarator: Declarator {
+                                                decl: Ident(("f", 39..40)),
+                                                pointer: false,
+                                            },
+                                            init: Some((
+                                                Binary(ExprBinary {
+                                                    lhs: (Atom(Int(1)), 43..44),
+                                                    rhs: (Atom(Int(32)), 47..49),
+                                                    op: Arith(Add),
+                                                }),
+                                                43..49,
+                                            )),
+                                        },
+                                        39..40,
+                                    ),
+                                ],
+                            }),
+                        ),
+                        33..50,
+                    ),
+                ],
+            }),
+            1..52,
+        ),
+    ]),
+    "int main() {\n    int i = 0;\n    float f = (1 + 32);\n}\n",
+)

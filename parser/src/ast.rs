@@ -91,7 +91,8 @@ pub enum Expr {
 
 #[derive(Debug, DebugPls)]
 pub enum Stmt {
-    Labeled(Box<Spanned<Stmt>>),
+    Decl(Decl),
+    Labeled{label: Ident, stmt: Box<Spanned<Stmt>>},
     Compound(Vec<Spanned<Stmt>>),
     If {
         cond: Expr,
@@ -232,7 +233,7 @@ pub struct Declarator {
 #[derive(Debug, DebugPls)]
 pub struct FunctionDef {
     pub decl: Decl,
-    pub body: Vec<Stmt>,
+    pub body: Vec<Spanned<Stmt>>,
 }
 
 #[derive(Debug, DebugPls)]

@@ -6,10 +6,10 @@ use crate::{
     ast::{
         ArithOpKind, Atom, BinaryOp, ComparisonKind, Decl, DeclAttr, DeclSpec, Declarator,
         DirectDeclarator, Expr, ExprBinary, ExprUnary, ExternalDecl, FunctionDef,
-        FunctionParamDecl, InitDecl, IntTyKind, IntTySignedness, NormalDecl, TypeSpecifier,
+        FunctionParamDecl, InitDecl, IntTyKind, IntTySignedness, NormalDecl, Stmt, TypeSpecifier,
         UnaryOp,
     },
-    Spanned,
+    Span, Spanned,
 };
 
 pub struct PrettyPrinter<W> {
@@ -39,7 +39,6 @@ impl<W: Write> PrettyPrinter<W> {
 
     fn linebreak(&mut self) -> Result {
         self.string("\n")?;
-        self.print_indent()?;
         Ok(())
     }
 
@@ -61,21 +60,124 @@ impl<W: Write> PrettyPrinter<W> {
     fn external_decl(&mut self, decl: &ExternalDecl) -> Result {
         match decl {
             ExternalDecl::FunctionDef(def) => self.function_def(def),
-            ExternalDecl::Decl(decl) => self.decl(decl, false),
+            ExternalDecl::Decl(decl) => {
+                self.decl(decl, false)?;
+                self.linebreak()?;
+                Ok(())
+            }
         }
     }
 
     fn function_def(&mut self, def: &FunctionDef) -> Result {
         self.decl(&def.decl, true)?;
-        self.string(" {")?;
-        self.linebreak()?;
-        self.indent();
-        // TODO: body
-        self.dedent();
-        self.string("}")?;
+        self.string(" ")?;
+        self.block(&def.body)?;
         self.linebreak()?;
 
         Ok(())
+    }
+
+    /// prints a block at the current location, stops right after the last `}`
+    fn block(&mut self, body: &[(Stmt, Span)]) -> Result {
+        self.string("{")?;
+        self.linebreak()?;
+        self.indent();
+        for (stmt, _) in body {
+            self.print_indent()?;
+            self.stmt(stmt)?;
+            self.linebreak()?;
+        }
+        self.dedent();
+        self.string("}")?;
+        Ok(())
+    }
+
+    fn stmt(&mut self, stmt: &Stmt) -> Result {
+        match stmt {
+            Stmt::Decl(decl) => self.decl(decl, false),
+            Stmt::Labeled { label, stmt } => {
+                self.string(&label.0)?;
+                self.string(":")?;
+                self.linebreak()?;
+                self.print_indent()?;
+                self.stmt(&stmt.0)?;
+                Ok(())
+            }
+            Stmt::Compound(body) => self.block(body),
+            Stmt::If {
+                cond,
+                then,
+                otherwise,
+            } => {
+                self.string("if (")?;
+                self.expr(cond)?;
+                self.string(") ")?;
+                self.block(then)?;
+                if let Some(block) = otherwise {
+                    self.string(" else ")?;
+                    self.block(block)?;
+                }
+                Ok(())
+            }
+            Stmt::Switch => todo!(),
+            Stmt::While { cond, body } => {
+                self.string("while (")?;
+                self.expr(cond)?;
+                self.string(") ")?;
+                self.block(body)?;
+                Ok(())
+            }
+            Stmt::For {
+                init_decl,
+                init_expr,
+                cond,
+                post,
+                body,
+            } => {
+                if init_expr.is_some() {
+                    todo!()
+                }
+
+                self.string("for (")?;
+                if let Some((decl, _)) = init_decl {
+                    self.decl(decl, false)?;
+                } else {
+                    self.string(";")?;
+                }
+
+                if let Some((cond, _)) = cond {
+                    self.string(" ")?;
+                    self.expr(cond)?;
+                }
+                self.string(";")?;
+
+                if let Some((post, _)) = post {
+                    self.string(" ")?;
+                    self.expr(post)?;
+                }
+
+                self.string(") ")?;
+                self.block(body)?;
+
+                Ok(())
+            }
+            Stmt::Goto((label, _)) => {
+                self.string("goto ")?;
+                self.string(label)?;
+                Ok(())
+            }
+            Stmt::Continue => self.string("continue"),
+            Stmt::Break => self.string("break"),
+            Stmt::Return(expr) => {
+                self.string("return")?;
+                if let Some((expr, _)) = expr {
+                    self.string(" ")?;
+                    self.expr(expr)?;
+                }
+                Ok(())
+            }
+            Stmt::Expr(expr) => self.expr(expr),
+        }
     }
 
     fn decl(&mut self, decl: &Decl, func: bool) -> Result {
@@ -85,7 +187,6 @@ impl<W: Write> PrettyPrinter<W> {
         }
         if !func {
             self.string(";")?;
-            self.linebreak()?;
         }
         Ok(())
     }

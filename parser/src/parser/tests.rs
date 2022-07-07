@@ -121,3 +121,15 @@ unsigned long long int z = 26;
     "#
     );
 }
+
+#[test]
+fn decl_stmts() {
+    parse_test!(
+        r#"
+int main() {
+    int i = 0;
+    float f = 1 + 32;
+}
+    "#
+    );
+}
