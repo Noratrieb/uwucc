@@ -5,9 +5,9 @@ type Result = std::io::Result<()>;
 use crate::{
     ast::{
         ArithOpKind, Atom, BinaryOp, ComparisonKind, Decl, DeclAttr, DeclSpec, Declarator,
-        DirectDeclarator, Expr, ExprBinary, ExprUnary, ExternalDecl, FunctionDef,
-        FunctionParamDecl, InitDecl, IntTyKind, IntTySignedness, NormalDecl, Stmt, TypeSpecifier,
-        UnaryOp,
+        DirectDeclarator, Expr, ExprBinary, ExprPostfix, ExprUnary, ExternalDecl, FunctionDef,
+        FunctionParamDecl, InitDecl, IntTyKind, IntTySignedness, NormalDecl, PostfixOp, Stmt,
+        TypeSpecifier, UnaryOp,
     },
     Span, Spanned,
 };
@@ -335,6 +335,36 @@ impl<W: Write> PrettyPrinter<W> {
                 Ok(())
             }
             Expr::Binary(binary) => self.binary(binary),
+            Expr::Postfix(ExprPostfix { lhs, op }) => {
+                self.expr(&lhs.0)?;
+                match op {
+                    PostfixOp::Call(args) => {
+                        self.string("(")?;
+                        let mut first = true;
+                        for (expr, _) in args {
+                            if !first {
+                                self.string(", ")?;
+                            }
+                            first = false;
+                            self.expr(expr)?;
+                        }
+                        self.string(")")?;
+                        Ok(())
+                    }
+                    PostfixOp::Member((ident, _)) => {
+                        self.string(".")?;
+                        self.string(ident)?;
+                        Ok(())
+                    }
+                    PostfixOp::ArrowMember((ident, _)) => {
+                        self.string("->")?;
+                        self.string(ident)?;
+                        Ok(())
+                    }
+                    PostfixOp::Increment => self.string("++"),
+                    PostfixOp::Decrement => self.string("--"),
+                }
+            }
         }
     }
 

@@ -3,8 +3,11 @@
 //! For more information, see https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 
 use crate::{
-    ast::{ArithOpKind, Atom, BinaryOp, ComparisonKind, Expr, ExprBinary, ExprUnary, UnaryOp},
-    parser::{expect, Parser, ParserError, Result},
+    ast::{
+        ArithOpKind, Atom, BinaryOp, ComparisonKind, Expr, ExprBinary, ExprPostfix, ExprUnary,
+        PostfixOp, UnaryOp,
+    },
+    parser::{expect, Parser, ParserError, Result, eat},
     pre::Punctuator as P,
     token::{Constant, Token as Tok},
     Span, Spanned,
@@ -33,7 +36,9 @@ where
                 return lhs;
             }
             &(Tok::Punct(punct), span) => {
-                let r_bp = prefix_binding_power(&Tok::Punct(punct));
+                let r_bp = prefix_binding_power(&Tok::Punct(punct)).ok_or_else(|| {
+                    ParserError::new(span, format!("expected expression, found {punct}"))
+                })?;
                 let Some(op) = unary_op_from_token(&Tok::Punct(punct)) else { panic!() };
                 let rhs = self.expr_bp(r_bp)?;
 
@@ -64,7 +69,7 @@ where
 
         #[allow(clippy::while_let_loop)] // idc
         loop {
-            let (tok, _) = match self.peek_t() {
+            let (tok, tok_span) = match self.peek_t() {
                 Ok(&tok) => tok,
                 Err(_) => break,
             };
@@ -74,18 +79,48 @@ where
                     break;
                 }
                 let (tok, _) = self.next_t()?;
-                if let Tok::Punct(P::BracketOpen) = tok {
-                    let rhs = self.expr_bp(0)?;
-                    let span = expect!(self, Tok::Punct(P::BracketClose));
-                    let span = lhs.1.extend(span);
-                    lhs = (
-                        Expr::Binary(ExprBinary {
-                            lhs: Box::new(lhs),
-                            rhs: Box::new(rhs),
-                            op: BinaryOp::Index,
-                        }),
-                        span,
-                    );
+                match tok {
+                    Tok::Punct(P::BracketOpen) => {
+                        let rhs = self.expr_bp(0)?;
+                        let span = expect!(self, Tok::Punct(P::BracketClose));
+                        let span = lhs.1.extend(span);
+                        lhs = (
+                            Expr::Binary(ExprBinary {
+                                lhs: Box::new(lhs),
+                                rhs: Box::new(rhs),
+                                op: BinaryOp::Index,
+                            }),
+                            span,
+                        );
+                    }
+                    Tok::Punct(P::ParenOpen) => {
+                        let mut arguments = Vec::new();
+                        let mut first = true;
+                        let last_span;
+                        loop {
+                            if let Some((_, span)) = eat!(self, Tok::Punct(P::ParenClose)) {
+                                last_span = span;
+                                break;
+                            }
+                            if !first {
+                                expect!(self, Tok::Punct(P::Comma));
+                            }
+                            first = false;
+
+                            let arg = self.expr_bp(0)?;
+                            arguments.push(arg);
+                        }
+                        let span = tok_span.extend(last_span);
+
+                        lhs = (
+                            Expr::Postfix(ExprPostfix {
+                                lhs: Box::new(lhs),
+                                op: PostfixOp::Call(arguments),
+                            }),
+                            span,
+                        )
+                    }
+                    _ => {}
                 }
                 continue;
             }
@@ -189,13 +224,13 @@ mod powers {
     pub const POSTFIX: u8 = 29;
 }
 
-fn prefix_binding_power(tok: &Tok<'_>) -> u8 {
-    match tok {
+fn prefix_binding_power(tok: &Tok<'_>) -> Option<u8> {
+    Some(match tok {
         Tok::Punct(P::Ampersand | P::Asterisk | P::Plus | P::Minus | P::Tilde | P::Bang) => {
             powers::UNARY_OPERATOR
         }
-        _ => panic!("invalid token in expression! {tok:?}"),
-    }
+        _ => return None,
+    })
 }
 
 fn infix_binding_power(tok: &Tok<'_>) -> (u8, u8) {
@@ -233,7 +268,12 @@ fn infix_binding_power(tok: &Tok<'_>) -> (u8, u8) {
 
 fn postfix_binding_power(tok: &Tok<'_>) -> Option<u8> {
     match tok {
-        Tok::Punct(P::BracketOpen) => Some(45),
+        Tok::Punct(P::BracketOpen) => Some(powers::POSTFIX),
+        Tok::Punct(P::ParenOpen) => Some(powers::POSTFIX),
+        Tok::Punct(P::Dot) => Some(powers::POSTFIX),
+        Tok::Punct(P::Arrow) => Some(powers::POSTFIX),
+        Tok::Punct(P::PlusPlus) => Some(powers::POSTFIX),
+        Tok::Punct(P::MinusMinus) => Some(powers::POSTFIX),
         _ => None,
     }
 }

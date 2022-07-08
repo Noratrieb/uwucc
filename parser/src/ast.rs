@@ -79,10 +79,26 @@ pub struct ExprBinary {
 }
 
 #[derive(Debug, DebugPls)]
+pub enum PostfixOp {
+    Call(Vec<Spanned<Expr>>),
+    Member(Ident),
+    ArrowMember(Ident),
+    Increment,
+    Decrement,
+}
+
+#[derive(Debug, DebugPls)]
+pub struct ExprPostfix {
+    pub lhs: Box<Spanned<Expr>>,
+    pub op: PostfixOp,
+}
+
+#[derive(Debug, DebugPls)]
 pub enum Expr {
     Atom(Atom),
     Unary(ExprUnary),
     Binary(ExprBinary),
+    Postfix(ExprPostfix),
 }
 
 //
@@ -92,7 +108,10 @@ pub enum Expr {
 #[derive(Debug, DebugPls)]
 pub enum Stmt {
     Decl(Decl),
-    Labeled{label: Ident, stmt: Box<Spanned<Stmt>>},
+    Labeled {
+        label: Ident,
+        stmt: Box<Spanned<Stmt>>,
+    },
     Compound(Vec<Spanned<Stmt>>),
     If {
         cond: Expr,

@@ -1,0 +1,48 @@
+---
+source: parser/src/parser/tests.rs
+expression: "(parsed_pretty, pretty_printed_source)"
+---
+(
+    Ok([
+        (
+            FunctionDef(FunctionDef {
+                decl: Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: WithParams {
+                                        ident: ("main", 5..9),
+                                        params: [],
+                                    },
+                                    pointer: false,
+                                },
+                                init: None,
+                            },
+                            5..9,
+                        ),
+                    ],
+                }),
+                body: [
+                    (
+                        Expr(
+                            Binary(ExprBinary {
+                                lhs: (Atom(Int(1)), 18..19),
+                                rhs: (Atom(Int(1)), 22..23),
+                                op: Arith(Add),
+                            }),
+                        ),
+                        18..23,
+                    ),
+                    (Expr(Atom(String("hello world!"))), 29..42),
+                ],
+            }),
+            1..46,
+        ),
+    ]),
+    "int main() {\n    (1 + 1)\n    \"hello world!\"\n}\n",
+)

@@ -133,3 +133,26 @@ int main() {
     "#
     );
 }
+
+#[test]
+fn expr_stmt() {
+    parse_test!(
+        r#"
+int main() {
+    1 + 1;
+    "hello world!";
+}
+    "#
+    );
+}
+
+#[test]
+fn hello_world() {
+    parse_test!(
+        r#"
+int main() {
+    puts("Hello, world!");
+}
+    "#
+    );
+}

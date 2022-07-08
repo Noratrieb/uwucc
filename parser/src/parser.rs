@@ -171,7 +171,7 @@ where
     /// (6.7) declaration:
     ///     declaration-specifiers init-declarator-list.opt ;
     ///     static_assert-declaration
-    /// 
+    ///
     /// This does NOT eat the semicolon!
     fn declaration(&mut self) -> Result<Spanned<Decl>> {
         if let Some((tok, span)) = eat!(self, Tok::Kw(Kw::StaticAssert)) {
@@ -201,7 +201,7 @@ where
     /// init-declarator:
     ///     declarator
     ///     declarator = initializer
-    /// 
+    ///
     fn init_declarator_list(&mut self) -> Result<Vec<Spanned<InitDecl>>> {
         let mut init_decls = Vec::new();
         let mut first = true;
@@ -477,7 +477,11 @@ where
             let span2 = expect!(self, Tok::Punct(P::Semicolon));
             return Ok((Stmt::Decl(decl), span.extend(span2)));
         }
-        todo!()
+        // all other stmts are indicated by keywords ...
+
+        // it must be an expression stmt
+        let (expr, span) = self.expr()?;
+        Ok((Stmt::Expr(expr), span))
     }
 
     /// (6.8.2) compound-statement:
