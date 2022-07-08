@@ -45,7 +45,7 @@ impl DebugPls for ParserError {
 
 type Result<T, E = ParserError> = std::result::Result<T, E>;
 
-struct Parser<'src, I>
+pub struct Parser<'src, I>
 where
     I: Iterator<Item = (Tok<'src>, Span)>,
 {
@@ -546,6 +546,22 @@ where
             decls.push(decl);
         }
         Ok(decls)
+    }
+}
+
+impl<'src, I> Iterator for Parser<'src, I>
+where
+    I: Iterator<Item = (Tok<'src>, Span)>,
+     {
+    type Item = Result<Spanned<ExternalDecl>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.peek_t().is_ok() {
+            let decl = self.external_declaration();
+            Some(decl)
+        } else {
+            None
+        }
     }
 }
 

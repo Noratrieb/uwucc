@@ -12,6 +12,8 @@ mod pre;
 mod pretty;
 mod token;
 
+pub use parser::Parser;
+
 pub type Spanned<T> = (T, Span);
 
 #[derive(PartialEq, Eq, Clone, Copy, Default)]

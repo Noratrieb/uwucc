@@ -1,12 +1,9 @@
-[workspace]
-members = [".", "./parser", "./analysis", "./codegen_x86"]
-
 [package]
-name = "uwucc"
+name = "analysis"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-parser = { path = "./parser" }
+parser = { path = "../parser" }
