@@ -19,7 +19,7 @@ trait FileResolver {
 struct Todo;
 
 impl FileResolver for Todo {
-    fn resolve_file(&self, file_name: &Path, kind: IncludeKind) -> io::Result<Vec<u8>> {
+    fn resolve_file(&self, _file_name: &Path, _kind: IncludeKind) -> io::Result<Vec<u8>> {
         todo!()
     }
 }
@@ -41,7 +41,7 @@ where
 }
 
 pub fn preprocess_tokens(src: &str) -> impl Iterator<Item = (PToken<'_>, Span)> {
-    let lexer = PLexer::new(src);
+    let lexer = PLexer::new(src, src.bytes().enumerate());
 
     let preprocessor = Preprocessor {
         lexer,

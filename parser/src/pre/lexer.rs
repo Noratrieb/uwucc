@@ -3,7 +3,7 @@
 //!
 //! Code might be bad. Possibly.
 
-use std::{fmt::Display, iter::Enumerate, ops::Not, str::Bytes};
+use std::{fmt::Display, ops::Not};
 
 use peekmore::PeekMore;
 
@@ -184,19 +184,17 @@ where
     src: peekmore::PeekMoreIterator<I>,
 }
 
-impl<'src> PLexer<'src, Enumerate<Bytes<'src>>> {
-    pub fn new(src_str: &'src str) -> Self {
-        Self {
-            src_str,
-            src: src_str.bytes().enumerate().peekmore(),
-        }
-    }
-}
-
 impl<'src, I> PLexer<'src, I>
 where
     I: Iterator<Item = (usize, u8)>,
 {
+    pub fn new(src_str: &'src str, src_iter: I) -> Self {
+        Self {
+            src_str,
+            src: src_iter.peekmore(),
+        }
+    }
+
     /// 6.4.2 Identifiers
     /// TODO: 6.4.3 Universal character names
     fn identifier(&mut self, mut last_span: usize) -> (PToken<'src>, usize) {
