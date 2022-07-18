@@ -7,7 +7,7 @@ use crate::{
         ArithOpKind, Atom, BinaryOp, ComparisonKind, Expr, ExprBinary, ExprPostfix, ExprUnary,
         PostfixOp, UnaryOp,
     },
-    parser::{expect, Parser, ParserError, Result, eat},
+    parser::{eat, expect, Parser, ParserError, Result},
     pre::Punctuator as P,
     token::{Constant, Token as Tok},
     Span, Spanned,

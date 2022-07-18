@@ -3,7 +3,7 @@
 //!
 //! Code might be bad. Possibly.
 
-use std::{fmt::Display, ops::Not};
+use std::{fmt::Display, iter::Enumerate, ops::Not, str::Bytes};
 
 use peekmore::PeekMore;
 
@@ -176,12 +176,21 @@ impl Display for Punctuator {
     }
 }
 
-struct PLexer<'src, I>
+pub struct PLexer<'src, I>
 where
     I: Iterator<Item = (usize, u8)>,
 {
     src_str: &'src str,
     src: peekmore::PeekMoreIterator<I>,
+}
+
+impl<'src> PLexer<'src, Enumerate<Bytes<'src>>> {
+    pub fn new(src_str: &'src str) -> Self {
+        Self {
+            src_str,
+            src: src_str.bytes().enumerate().peekmore(),
+        }
+    }
 }
 
 impl<'src, I> PLexer<'src, I>
@@ -409,19 +418,11 @@ where
     }
 }
 
-pub fn preprocess_tokens(src: &str) -> impl Iterator<Item = (PToken<'_>, Span)> {
-    let lexer = PLexer {
-        src_str: src,
-        src: src.bytes().enumerate().peekmore(),
-    };
-    lexer
-}
-
 #[cfg(test)]
 mod tests {
     macro_rules! lex_test {
         ($str:expr) => {
-            let tokens = super::preprocess_tokens($str);
+            let tokens = super::super::preprocess_tokens($str);
             let tokens = tokens.collect::<Vec<_>>();
             insta::assert_debug_snapshot!(tokens);
         };

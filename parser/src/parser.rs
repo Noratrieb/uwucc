@@ -552,7 +552,7 @@ where
 impl<'src, I> Iterator for Parser<'src, I>
 where
     I: Iterator<Item = (Tok<'src>, Span)>,
-     {
+{
     type Item = Result<Spanned<ExternalDecl>>;
 
     fn next(&mut self) -> Option<Self::Item> {
