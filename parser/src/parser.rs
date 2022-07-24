@@ -5,7 +5,7 @@ use crate::{
     ast::{
         Decl, DeclAttr, DeclSpec, Declarator, DirectDeclarator, ExternalDecl, FunctionDef,
         FunctionParamDecl, Ident, InitDecl, IntTy, IntTyKind, IntTySignedness, NormalDecl, Stmt,
-        TypeSpecifier, TranslationUnit,
+        TranslationUnit, TypeSpecifier,
     },
     pre::Punctuator as P,
     token::{Keyword as Kw, Token as Tok},
@@ -307,7 +307,7 @@ where
                     kind: IntTyKind::Int,
                 }),
                 Tok::Kw(Kw::Long) => {
-                    if let Some(_) = eat!(self, Tok::Kw(Kw::Long)) {
+                    if eat!(self, Tok::Kw(Kw::Long)).is_some() {
                         eat!(self, Tok::Kw(Kw::Int));
                         TypeSpecifier::Integer(IntTy {
                             sign: signedness.unwrap_or_default(),

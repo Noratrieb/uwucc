@@ -262,3 +262,25 @@ pub enum ExternalDecl {
 }
 
 pub type TranslationUnit = Vec<Spanned<ExternalDecl>>;
+
+impl Decl {
+    pub fn uwnrap_normal(&self) -> &NormalDecl {
+        match self {
+            Decl::Normal(decl) => decl,
+            Decl::StaticAssert => {
+                panic!("Expected normal declaration, found static assert declaration")
+            }
+        }
+    }
+}
+
+impl DirectDeclarator {
+    pub fn unwrap_with_params(&self) -> (&Ident, &Vec<FunctionParamDecl>) {
+        match self {
+            DirectDeclarator::Ident(_) => {
+                panic!("Expected declarator with parameters, found single identifier declarator1")
+            }
+            DirectDeclarator::WithParams { ident, params } => (ident, params),
+        }
+    }
+}
