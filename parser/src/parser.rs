@@ -5,7 +5,7 @@ use crate::{
     ast::{
         Decl, DeclAttr, DeclSpec, Declarator, DirectDeclarator, ExternalDecl, FunctionDef,
         FunctionParamDecl, Ident, InitDecl, IntTy, IntTyKind, IntTySignedness, NormalDecl, Stmt,
-        TypeSpecifier,
+        TypeSpecifier, TranslationUnit,
     },
     pre::Punctuator as P,
     token::{Keyword as Kw, Token as Tok},
@@ -567,7 +567,7 @@ where
 
 pub fn parse_declarations<'src>(
     src: impl Iterator<Item = (Tok<'src>, Span)>,
-) -> Result<Vec<Spanned<ExternalDecl>>> {
+) -> Result<TranslationUnit> {
     use peekmore::PeekMore;
 
     let mut parser = Parser {

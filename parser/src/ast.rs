@@ -261,4 +261,4 @@ pub enum ExternalDecl {
     FunctionDef(FunctionDef),
 }
 
-pub type TranslationUnit = Vec<ExternalDecl>;
+pub type TranslationUnit = Vec<Spanned<ExternalDecl>>;

@@ -6,7 +6,7 @@ use std::fmt::Debug;
 
 use crate::token::Token;
 
-mod ast;
+pub mod ast;
 mod parser;
 mod pre;
 mod pretty;
