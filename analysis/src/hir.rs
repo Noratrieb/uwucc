@@ -11,4 +11,6 @@ pub struct Hir<'hir> {
 
 pub struct ExternalDecl;
 
-pub struct FunctionDef;
+pub struct FunctionDef {
+    
+}
