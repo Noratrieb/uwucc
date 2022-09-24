@@ -33,6 +33,7 @@ name = "analysis"
 version = "0.1.0"
 dependencies = [
  "bumpalo",
+ "indexmap",
  "lasso",
  "parser",
  "rustc-hash",
