@@ -7,11 +7,12 @@ pub type Symbol = Spur;
 pub type Ident = Spanned<Symbol>;
 
 pub struct Hir<'hir> {
-    x: &'hir (),
+    defs: Vec<Def>,
+    __: &'hir (),
 }
 
-pub struct HirId(u32);
-pub struct DefId(HirId);
+#[derive(Clone, Copy)]
+pub struct DefId(u32);
 
 pub enum IntTySignedness {
     Signed,
@@ -37,16 +38,31 @@ pub struct IntTy {
     pub kind: IntTyKind,
 }
 
+pub struct Def {
+    pub name: Ident,
+    pub def_id: DefId,
+    pub kind: DefKind,
+}
+
+pub enum DefKind {
+    Union(UnionTy),
+    Enum(EnumTy),
+    Struct(StructTy),
+}
+
 pub struct UnionTy {
-    variants: IndexMap<Symbol, Ty>,
+    pub def_id: DefId,
+    pub variants: IndexMap<Symbol, Ty>,
 }
 
 pub struct StructTy {
-    fields: IndexMap<Symbol, Ty>,
+    pub def_id: DefId,
+    pub fields: IndexMap<Symbol, Ty>,
 }
 
 pub struct EnumTy {
-    variants: IndexMap<Symbol, i128>,
+    pub def_id: DefId,
+    pub variants: IndexMap<Symbol, i128>,
 }
 
 pub enum TyKind {
@@ -65,12 +81,7 @@ pub enum TyKind {
 }
 
 pub struct Ty {
-    def_id: DefId,
-}
-
-pub struct Node {
-    id: HirId,
-    kind: NodeKind,
+    kind: TyKind,
 }
 
 pub enum NodeKind {
@@ -81,7 +92,6 @@ pub struct ExternalDecl;
 
 pub struct FunctionDef {
     name: Symbol,
-    
 }
 
 pub struct Expr<'hir> {
