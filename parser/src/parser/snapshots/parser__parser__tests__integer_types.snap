@@ -15,7 +15,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("a", 24..25)),
+                                    decl: Ident((a, 24..25)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(1)), 28..29)),
@@ -38,7 +38,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("b", 54..55)),
+                                    decl: Ident((b, 54..55)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(2)), 58..59)),
@@ -61,7 +61,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("c", 84..85)),
+                                    decl: Ident((c, 84..85)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(3)), 88..89)),
@@ -84,7 +84,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("d", 115..116)),
+                                    decl: Ident((d, 115..116)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(4)), 119..120)),
@@ -107,7 +107,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("e", 145..146)),
+                                    decl: Ident((e, 145..146)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(6)), 149..150)),
@@ -130,7 +130,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("f", 175..176)),
+                                    decl: Ident((f, 175..176)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(5)), 179..180)),
@@ -153,7 +153,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("g", 205..206)),
+                                    decl: Ident((g, 205..206)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(7)), 209..210)),
@@ -179,7 +179,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("h", 235..236)),
+                                    decl: Ident((h, 235..236)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(8)), 239..240)),
@@ -205,7 +205,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("i", 265..266)),
+                                    decl: Ident((i, 265..266)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(9)), 269..270)),
@@ -228,7 +228,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("j", 296..297)),
+                                    decl: Ident((j, 296..297)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(10)), 300..302)),
@@ -251,7 +251,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("k", 327..328)),
+                                    decl: Ident((k, 327..328)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(11)), 331..333)),
@@ -274,7 +274,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("l", 358..359)),
+                                    decl: Ident((l, 358..359)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(12)), 362..364)),
@@ -297,7 +297,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("m", 389..390)),
+                                    decl: Ident((m, 389..390)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(13)), 393..395)),
@@ -320,7 +320,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("n", 420..421)),
+                                    decl: Ident((n, 420..421)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(14)), 424..426)),
@@ -343,7 +343,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("o", 452..453)),
+                                    decl: Ident((o, 452..453)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(15)), 456..458)),
@@ -366,7 +366,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("p", 483..484)),
+                                    decl: Ident((p, 483..484)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(16)), 487..489)),
@@ -389,7 +389,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("q", 514..515)),
+                                    decl: Ident((q, 514..515)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(17)), 518..520)),
@@ -412,7 +412,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("r", 545..546)),
+                                    decl: Ident((r, 545..546)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(18)), 549..551)),
@@ -438,7 +438,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("s", 576..577)),
+                                    decl: Ident((s, 576..577)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(19)), 580..582)),
@@ -464,7 +464,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("t", 607..608)),
+                                    decl: Ident((t, 607..608)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(20)), 611..613)),
@@ -490,7 +490,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("u", 639..640)),
+                                    decl: Ident((u, 639..640)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(21)), 643..645)),
@@ -516,7 +516,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("v", 670..671)),
+                                    decl: Ident((v, 670..671)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(22)), 674..676)),
@@ -542,7 +542,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("w", 701..702)),
+                                    decl: Ident((w, 701..702)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(23)), 705..707)),
@@ -568,7 +568,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("x", 732..733)),
+                                    decl: Ident((x, 732..733)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(24)), 736..738)),
@@ -594,7 +594,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("y", 763..764)),
+                                    decl: Ident((y, 763..764)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(25)), 767..769)),
@@ -620,7 +620,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("z", 794..795)),
+                                    decl: Ident((z, 794..795)),
                                     pointer: false,
                                 },
                                 init: Some((Atom(Int(26)), 798..800)),

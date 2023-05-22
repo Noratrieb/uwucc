@@ -1,85 +1,180 @@
-use parser::{ast, Span};
+use parser::{
+    ast::{DeclAttr, ExternalDecl, Stmt, TranslationUnit, TypeSpecifier},
+    Span, Symbol,
+};
 use rustc_hash::FxHashMap;
 
-use crate::hir::{self, DefId, Symbol};
+use crate::{
+    ir::{
+        BasicBlock, Branch, ConstValue, Func, Ir, Layout, Operand, Register, RegisterData,
+        Statement, StatementKind,
+    },
+    ty::Ty,
+    Error,
+};
 
-pub struct LowerCtx<'hir> {
-    hir_symbol_intern: lasso::Rodeo,
-    hir_arena: &'hir bumpalo::Bump,
-    global_symbols: FxHashMap<Symbol, &'hir hir::ExternalDecl>,
-    scope: Scope,
-}
+struct LoweringCx {}
 
-struct Scope {
-    parent: Option<Box<Scope>>,
-    variables: FxHashMap<Symbol, DefId>,
-}
+pub fn lower_translation_unit(ast: &TranslationUnit) -> Result<Ir, Error> {
+    let mut lcx = LoweringCx {};
 
-impl Scope {
-    fn new() -> Self {
-        Self {
-            parent: None,
-            variables: FxHashMap::default(),
-        }
-    }
-
-    fn insert(&mut self, symbol: Symbol, def_id: DefId) {
-        self.variables.insert(symbol, def_id);
-    }
-
-    fn enter_new(&mut self) {
-        let new = Self::new();
-        let this = std::mem::replace(self, new);
-        self.parent = Some(Box::new(this));
-    }
-
-    fn leave(&mut self) {
-        let old = std::mem::replace(self, Self::new());
-        let parent = old.parent.expect("parent not found when leaving scope");
-        *self = *parent;
-    }
-
-    fn lookup(&self, sym: Symbol) -> Option<DefId> {
-        self.variables
-            .get(&sym)
-            .copied()
-            .or_else(|| self.parent.as_ref().and_then(|parent| parent.lookup(sym)))
-    }
-}
-
-impl<'hir> LowerCtx<'hir> {
-    pub fn lower_translation_unit(&mut self, unit: &ast::TranslationUnit) -> hir::Hir<'hir> {
-        for _decl in unit {}
-
-        todo!()
-    }
-
-    fn lower_decl(&mut self, decl: &ast::ExternalDecl, span: Span) -> hir::ExternalDecl {
+    for (decl, _) in ast {
         match decl {
-            ast::ExternalDecl::Decl(_) => todo!(),
-            ast::ExternalDecl::FunctionDef(def) => {
-                let _fn_def = self.lower_function_def(def, span);
-                hir::ExternalDecl
+            ExternalDecl::Decl(_) => todo!("decl is unsupported"),
+            ExternalDecl::FunctionDef(def) => {
+                let decl = def.decl.uwnrap_normal();
+                let body = &def.body;
+                let ret_ty = lower_ty(&decl.decl_spec.ty);
+                lower_body(&mut lcx, body, decl.init_declarators[0].1, ret_ty)?;
             }
         }
     }
 
-    fn lower_function_def(&mut self, def: &ast::FunctionDef, _span: Span) -> hir::FunctionDef {
-        let decl = def.decl.uwnrap_normal();
-        let (init_declarator, _declarator_span) = decl
-            .init_declarators
-            .get(0)
-            .expect("single init declarator in function definition");
-        let declarator = &init_declarator.declarator;
+    todo!()
+}
 
-        let ((name_ident, _name_span), _param_decls) = declarator.decl.unwrap_with_params();
+#[derive(Debug)]
+struct FnLoweringCtxt {
+    scopes: Vec<FxHashMap<Symbol, VariableInfo>>,
+    ir: Func,
+    current_bb: u32,
+}
 
-        let name_sym = self.hir_symbol_intern.get_or_intern(name_ident);
+impl FnLoweringCtxt {
+    fn alloca(&mut self, layout: &Layout, name: Option<Symbol>, span: Span) -> Register {
+        let bb = self.bb_mut();
+        let reg = Register(bb.regs.len().try_into().unwrap());
+        bb.regs.push(RegisterData { name });
+        let stmt = Statement {
+            span,
+            kind: StatementKind::Alloca {
+                reg,
+                size: Operand::Const(ConstValue::u64(layout.size)),
+                align: Operand::Const(ConstValue::u64(layout.align)),
+            },
+        };
+        bb.statements.push(stmt);
+        reg
+    }
 
-        if self.global_symbols.contains_key(&name_sym) {
-            panic!("function declarated twice! return this error properly! lol!")
+    fn bb_mut(&mut self) -> &mut BasicBlock {
+        &mut self.ir.bbs[self.current_bb as usize]
+    }
+}
+
+#[derive(Debug)]
+struct VariableInfo {
+    def_span: Span,
+    ty: Ty,
+    ptr_to: Register,
+    decl_attr: DeclAttr,
+    layout: Layout,
+}
+
+fn lower_body(
+    // may be used later
+    _lcx: &mut LoweringCx,
+    body: &[(Stmt, Span)],
+    def_span: Span,
+    ret_ty: Ty,
+) -> Result<Func, Error> {
+    let mut cx: FnLoweringCtxt = FnLoweringCtxt {
+        scopes: vec![FxHashMap::default()],
+        ir: Func {
+            bbs: vec![BasicBlock {
+                regs: Vec::new(),
+                statements: Vec::new(),
+                term: Branch::Goto(0),
+            }],
+            def_span,
+            ret_ty,
+        },
+        current_bb: 0,
+    };
+
+    for (stmt, stmt_span) in body {
+        match stmt {
+            Stmt::Decl(decl) => {
+                let decl = decl.uwnrap_normal();
+                let ty = lower_ty(&decl.decl_spec.ty);
+                let decl_attr = decl.decl_spec.attrs;
+
+                for (var, def_span) in &decl.init_declarators {
+                    let layout = layout_of(&ty);
+                    let (name, _) = var.declarator.decl.name();
+                    let ptr_to = cx.alloca(&layout, Some(name), *stmt_span);
+
+                    let variable_info = VariableInfo {
+                        def_span: *def_span,
+                        ty: ty.clone(),
+                        ptr_to,
+                        decl_attr,
+                        layout,
+                    };
+                    cx.scopes.last_mut().unwrap().insert(name, variable_info);
+                }
+            }
+            Stmt::Labeled { .. } => todo!("labels are not implemented"),
+            Stmt::Compound(_) => todo!("blocks are not implemented"),
+            Stmt::If {
+                cond,
+                then,
+                otherwise,
+            } => todo!(),
+            Stmt::Switch => todo!(),
+            Stmt::While { cond, body } => todo!(),
+            Stmt::For {
+                init_decl,
+                init_expr,
+                cond,
+                post,
+                body,
+            } => todo!(),
+            Stmt::Goto(_) => todo!(),
+            Stmt::Continue => todo!(),
+            Stmt::Break => todo!(),
+            Stmt::Return(_) => todo!(),
+            Stmt::Expr(_) => todo!(),
         }
+    }
 
-        todo!()
+    dbg!(&cx);
+
+    Ok(cx.ir)
+}
+
+fn lower_ty(ty: &TypeSpecifier) -> Ty {
+    match ty {
+        TypeSpecifier::Void => Ty::Void,
+        TypeSpecifier::Char => Ty::Char,
+        TypeSpecifier::SChar => Ty::SChar,
+        TypeSpecifier::UChar => Ty::UChar,
+        TypeSpecifier::Integer(int) => Ty::Integer(*int),
+        TypeSpecifier::Float => Ty::Float,
+        TypeSpecifier::Double => Ty::Double,
+        TypeSpecifier::LongDouble => Ty::LongDouble,
+        TypeSpecifier::Bool => Ty::Bool,
+    }
+}
+
+fn layout_of(ty: &Ty) -> Layout {
+    match ty {
+        Ty::Void => Layout::size_align(0, 1),
+        Ty::Char => Layout::size_align(1, 1),
+        Ty::SChar => Layout::size_align(1, 1),
+        Ty::UChar => Layout::size_align(1, 1),
+        Ty::Integer(int) => match int.kind {
+            parser::ast::IntTyKind::Short => Layout::size_align(2, 2),
+            parser::ast::IntTyKind::Int => Layout::size_align(4, 4),
+            parser::ast::IntTyKind::Long => Layout::size_align(8, 8),
+            parser::ast::IntTyKind::LongLong => Layout::size_align(8, 8),
+        },
+        Ty::Float => Layout::size_align(4, 4),
+        Ty::Double => Layout::size_align(8, 8),
+        Ty::LongDouble => Layout::size_align(8, 8),
+        Ty::Bool => Layout::size_align(1, 1),
+        Ty::Struct(_) => todo!("layout_of struct"),
+        Ty::Union(_) => todo!("layout_of union"),
+        Ty::Enum(_) => todo!("layout_of enum"),
     }
 }

@@ -16,7 +16,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                             InitDecl {
                                 declarator: Declarator {
                                     decl: WithParams {
-                                        ident: ("main", 5..9),
+                                        ident: (main, 5..9),
                                         params: [],
                                     },
                                     pointer: false,
@@ -39,7 +39,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                                     (
                                         InitDecl {
                                             declarator: Declarator {
-                                                decl: Ident(("i", 22..23)),
+                                                decl: Ident((i, 22..23)),
                                                 pointer: false,
                                             },
                                             init: Some((Atom(Int(0)), 26..27)),
@@ -62,7 +62,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                                     (
                                         InitDecl {
                                             declarator: Declarator {
-                                                decl: Ident(("f", 39..40)),
+                                                decl: Ident((f, 39..40)),
                                                 pointer: false,
                                             },
                                             init: Some((

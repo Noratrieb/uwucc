@@ -15,7 +15,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("x", 5..6)),
+                                    decl: Ident((x, 5..6)),
                                     pointer: false,
                                 },
                                 init: Some((
@@ -45,7 +45,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("y", 21..22)),
+                                    decl: Ident((y, 21..22)),
                                     pointer: false,
                                 },
                                 init: Some((
@@ -82,12 +82,12 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         (
                             InitDecl {
                                 declarator: Declarator {
-                                    decl: Ident(("z", 45..46)),
+                                    decl: Ident((z, 45..46)),
                                     pointer: false,
                                 },
                                 init: Some((
                                     Binary(ExprBinary {
-                                        lhs: (Atom(Ident(("array", 50..55))), 50..55),
+                                        lhs: (Atom(Ident((array, 50..55))), 50..55),
                                         rhs: (Atom(Int(9)), 56..57),
                                         op: Index,
                                     }),

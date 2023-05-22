@@ -8,7 +8,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             FunctionDef(FunctionDef {
                 decl: Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Void,
+                        ty: Integer(IntTy { sign: Signed, kind: Int }),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -16,21 +16,30 @@ expression: "(parsed_pretty, pretty_printed_source)"
                             InitDecl {
                                 declarator: Declarator {
                                     decl: WithParams {
-                                        ident: (uwu, 6..9),
+                                        ident: (main, 5..9),
                                         params: [],
                                     },
                                     pointer: false,
                                 },
                                 init: None,
                             },
-                            6..9,
+                            5..9,
                         ),
                     ],
                 }),
-                body: [],
+                body: [
+                    (
+                        If {
+                            cond: (Atom(Int(1)), 22..23),
+                            then: [(Expr(Atom(String("a"))), 35..37)],
+                            otherwise: Some([(Expr(Atom(String("b"))), 61..63)]),
+                        },
+                        18..37,
+                    ),
+                ],
             }),
-            1..14,
+            1..73,
         ),
     ]),
-    "void uwu() {\n}\n",
+    "int main() {\n    if (1) {\n        \"a\"\n    } else {\n        \"b\"\n    }\n}\n",
 )

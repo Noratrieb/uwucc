@@ -16,7 +16,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
                             InitDecl {
                                 declarator: Declarator {
                                     decl: WithParams {
-                                        ident: ("uwu", 35..38),
+                                        ident: (uwu, 35..38),
                                         params: [],
                                     },
                                     pointer: false,

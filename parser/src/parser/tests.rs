@@ -156,3 +156,49 @@ int main() {
     "#
     );
 }
+
+#[test]
+fn if_else() {
+    parse_test!(
+        r#"
+int main() {
+    if (1) {
+        "a";
+    } else {
+        "b";
+    }
+}
+    "#
+    );
+}
+
+#[test]
+fn if_else_braceless() {
+    parse_test!(
+        r#"
+int main() {
+    if (1)
+        "a";
+    else
+        "b";
+}
+    "#
+    );
+}
+
+#[test]
+fn else_if() {
+    parse_test!(
+        r#"
+int main() {
+    if (1) {
+        "a";
+    } else if (2) {
+        "b";
+    } else {
+        "c";
+    }
+}
+    "#
+    );
+}

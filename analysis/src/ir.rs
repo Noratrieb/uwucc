@@ -1,57 +1,135 @@
 /// A low level IR used for codegen.
-/// 
+///
 /// The following expression is lowered to the following IR:
-/// 
+///
 /// ```c
 /// int i = 0;
 /// long l = 1;
-/// int y = ((int)&i)+l;
+/// if (true) {
+///     i = 1;
+/// } else {
+///     i = 2;
+/// }
+/// yeet(i);
 /// ```
-/// 
+///
 /// ```c
-/// int _0;   // i
-/// long _1;  // l
-/// int *_2;  // tmp &i
-/// int _3;   // tmp (int)&i
-/// int _4;   // tmp l (implicit cast to int)
-/// int _5;   // y
-/// 
-/// _0 = Const(0)
-/// _1 = Const(1)
-/// _2 = AddrOf(_0)
-/// _3 = Cast(Ptr, Int, _2)
-/// _4 = Cast(Long, Int, _1)
-/// _5 = _3 + _4
+/// bb0:
+///   %0 = alloca 4, 4
+///   store _0, 0
+///   %1 = alloca 8, 8
+///   store %1, 1
+///   branch true, bb1, bb2
+/// bb1:
+///   store %0, 1
+///   branch bb3
+/// bb2:
+///   store %0, 2
+///   branch bb3
+/// bb3:
+///   %val = load %0
+///   call yeet(%val)
 /// ```
+use parser::{Span, Symbol};
+use rustc_hash::FxHashMap;
 
-use parser::Span;
+use crate::ty::Ty;
 
-use crate::hir::Ty;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct DefId(u32);
 
-struct Body {
-    locals: Vec<LocalDecl>,
-    statements: Vec<Statement>,
+#[derive(Debug, Clone)]
+pub struct Layout {
+    pub size: u64,
+    pub align: u64,
 }
 
-struct LocalDecl {
-    pub ty: Ty,
+pub struct Ir {
+    pub funcs: FxHashMap<DefId, Func>,
 }
 
-struct Statement {
+#[derive(Debug, Clone)]
+pub struct Func {
+    pub bbs: Vec<BasicBlock>,
+    pub def_span: Span,
+    pub ret_ty: Ty,
+}
+
+#[derive(Debug, Clone)]
+pub struct BasicBlock {
+    pub regs: Vec<RegisterData>,
+    pub statements: Vec<Statement>,
+    pub term: Branch,
+}
+
+#[derive(Debug, Clone)]
+pub struct RegisterData {
+    pub name: Option<Symbol>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Register(pub u32);
+
+#[derive(Debug, Clone)]
+pub struct Statement {
     pub span: Span,
     pub kind: StatementKind,
 }
 
-enum StatementKind {
-    Assign(LValue, RValue),
+#[derive(Debug, Clone)]
+pub enum StatementKind {
+    Alloca {
+        reg: Register,
+        size: Operand,
+        align: Operand,
+    },
+    Store {
+        ptr_reg: Register,
+        size: Operand,
+        align: Operand,
+    },
+    Load {
+        result: Register,
+        ptr_reg: Register,
+        size: Operand,
+        align: Operand,
+    },
+    Arith {
+        kind: ArithKind,
+        lhs: Register,
+        rhs: Register,
+        result: Register,
+    },
+    Comp {
+        kind: CompKind,
+        lhs: Register,
+        rhs: Register,
+        result: Register,
+    },
+    PtrOffset {
+        reg: Register,
+        amount: Operand,
+    },
 }
 
-enum RValue {
-    BinOp(BinOpKind, Operand),
-    Const,
+#[derive(Debug, Clone)]
+pub enum Operand {
+    Reg(Register),
+    Const(ConstValue),
 }
 
-enum BinOpKind {
+#[derive(Debug, Clone)]
+pub enum Branch {
+    Goto(u32),
+    Switch {
+        cond: Option<RValue>,
+        yes: u32,
+        no: u32,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum ArithKind {
     Add,
     Sub,
     Mul,
@@ -59,8 +137,35 @@ enum BinOpKind {
     Mod,
 }
 
-enum Operand {
-    Local(usize),
+#[derive(Debug, Clone)]
+pub enum CompKind {
+    Eq,
+    Neq,
+    Gt,
+    Geq,
+    Lt,
+    Leq,
 }
 
-enum LValue {}
+#[derive(Debug, Clone)]
+pub enum RValue {
+    Register(u32),
+    Constant(ConstValue),
+}
+
+#[derive(Debug, Clone)]
+pub enum ConstValue {
+    Int(u128),
+}
+
+impl Layout {
+    pub fn size_align(size: u64, align: u64) -> Self {
+        Self { size, align }
+    }
+}
+
+impl ConstValue {
+    pub fn u64(int: u64) -> Self {
+        Self::Int(int.into())
+    }
+}

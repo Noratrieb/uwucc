@@ -9,6 +9,7 @@ use crate::{
         FunctionParamDecl, InitDecl, IntTyKind, IntTySignedness, NormalDecl, PostfixOp, Stmt,
         TypeSpecifier, UnaryOp,
     },
+    sym::Symbol,
     Span, Spanned,
 };
 
@@ -31,6 +32,10 @@ impl<W: Write> PrettyPrinter<W> {
 
     fn string(&mut self, str: &str) -> Result {
         write!(self.output, "{}", str)
+    }
+
+    fn sym(&mut self, sym: Symbol) -> Result {
+        sym.as_str(|sym| self.string(sym))
     }
 
     fn print_indent(&mut self) -> Result {
@@ -88,6 +93,7 @@ impl<W: Write> PrettyPrinter<W> {
             self.linebreak()?;
         }
         self.dedent();
+        self.print_indent()?;
         self.string("}")?;
         Ok(())
     }
@@ -96,7 +102,7 @@ impl<W: Write> PrettyPrinter<W> {
         match stmt {
             Stmt::Decl(decl) => self.decl(decl, false),
             Stmt::Labeled { label, stmt } => {
-                self.string(&label.0)?;
+                self.sym(label.0)?;
                 self.string(":")?;
                 self.linebreak()?;
                 self.print_indent()?;
@@ -105,7 +111,7 @@ impl<W: Write> PrettyPrinter<W> {
             }
             Stmt::Compound(body) => self.block(body),
             Stmt::If {
-                cond,
+                cond: (cond, _),
                 then,
                 otherwise,
             } => {
@@ -163,7 +169,7 @@ impl<W: Write> PrettyPrinter<W> {
             }
             Stmt::Goto((label, _)) => {
                 self.string("goto ")?;
-                self.string(label)?;
+                self.sym(*label)?;
                 Ok(())
             }
             Stmt::Continue => self.string("continue"),
@@ -276,9 +282,9 @@ impl<W: Write> PrettyPrinter<W> {
 
     fn direct_declarator(&mut self, declarator: &DirectDeclarator) -> Result {
         match declarator {
-            DirectDeclarator::Ident(ident) => self.string(&ident.0),
+            DirectDeclarator::Ident(ident) => self.sym(ident.0),
             DirectDeclarator::WithParams { ident, params } => {
-                self.string(&ident.0)?;
+                self.sym(ident.0)?;
                 self.string("(")?;
                 self.function_param_decls(params)?;
                 self.string(")")?;
@@ -304,7 +310,7 @@ impl<W: Write> PrettyPrinter<W> {
     fn expr(&mut self, expr: &Expr) -> Result {
         match expr {
             Expr::Atom(atom) => match atom {
-                Atom::Ident((ident, _)) => self.string(ident),
+                Atom::Ident((ident, _)) => self.sym(*ident),
                 Atom::Int(int) => write!(self.output, "{}", int),
                 Atom::Float(float) => write!(self.output, "{}", float),
                 Atom::String(string) => {
@@ -353,12 +359,12 @@ impl<W: Write> PrettyPrinter<W> {
                     }
                     PostfixOp::Member((ident, _)) => {
                         self.string(".")?;
-                        self.string(ident)?;
+                        self.sym(*ident)?;
                         Ok(())
                     }
                     PostfixOp::ArrowMember((ident, _)) => {
                         self.string("->")?;
-                        self.string(ident)?;
+                        self.sym(*ident)?;
                         Ok(())
                     }
                     PostfixOp::Increment => self.string("++"),

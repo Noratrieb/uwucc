@@ -3,9 +3,9 @@ use std::fmt::Debug;
 use bitflags::bitflags;
 use dbg_pls::DebugPls;
 
-use crate::Spanned;
+use crate::{sym::Symbol, Spanned};
 
-pub type Ident = Spanned<String>;
+pub type Ident = Spanned<Symbol>;
 
 //
 // --- Expr
@@ -114,7 +114,7 @@ pub enum Stmt {
     },
     Compound(Vec<Spanned<Stmt>>),
     If {
-        cond: Expr,
+        cond: Spanned<Expr>,
         then: Vec<Spanned<Stmt>>,
         otherwise: Option<Vec<Spanned<Stmt>>>,
     },
@@ -141,7 +141,7 @@ pub enum Stmt {
 // --- Types and decls and garbage whatever
 //
 
-#[derive(Debug, DebugPls)]
+#[derive(Debug, DebugPls, Clone, Copy)]
 pub enum IntTySignedness {
     Signed,
     Unsigned,
@@ -154,7 +154,7 @@ impl Default for IntTySignedness {
     }
 }
 
-#[derive(Debug, DebugPls)]
+#[derive(Debug, DebugPls, Clone, Copy)]
 pub enum IntTyKind {
     Short,
     Int,
@@ -162,7 +162,7 @@ pub enum IntTyKind {
     LongLong,
 }
 
-#[derive(Debug, DebugPls)]
+#[derive(Debug, DebugPls, Clone, Copy)]
 pub struct IntTy {
     pub sign: IntTySignedness,
     pub kind: IntTyKind,
@@ -281,6 +281,13 @@ impl DirectDeclarator {
                 panic!("Expected declarator with parameters, found single identifier declarator1")
             }
             DirectDeclarator::WithParams { ident, params } => (ident, params),
+        }
+    }
+
+    pub fn name(&self) -> Ident {
+        match *self {
+            DirectDeclarator::Ident(ident) => ident,
+            DirectDeclarator::WithParams { ident, .. } => ident,
         }
     }
 }

@@ -8,6 +8,7 @@ use crate::{
         TranslationUnit, TypeSpecifier,
     },
     pre::Punctuator as P,
+    sym::Symbol,
     token::{Keyword as Kw, Token as Tok},
     Span, Spanned,
 };
@@ -138,7 +139,7 @@ where
 
     fn ident(&mut self) -> Result<Ident> {
         match self.next_t()? {
-            (Tok::Ident(ident), span) => Ok((ident.to_string(), span)),
+            (Tok::Ident(ident), span) => Ok((Symbol::intern(ident), span)),
             (tok, span) => Err(ParserError::new(
                 span,
                 format!("expected identifier, found `{tok}`"),
@@ -479,8 +480,14 @@ where
         }
         // all other stmts are indicated by keywords ...
 
+        if let (Tok::Kw(Kw::If), _) = self.peek_t()? {
+            return self.if_statement();
+        }
+
         // it must be an expression stmt
         let (expr, span) = self.expr()?;
+        expect!(self, Tok::Punct(P::Semicolon));
+
         Ok((Stmt::Expr(expr), span))
     }
 
@@ -546,6 +553,41 @@ where
             decls.push(decl);
         }
         Ok(decls)
+    }
+
+    fn compount_or_single_statement(&mut self) -> Result<Vec<Spanned<Stmt>>> {
+        if let Some((_, brace_span)) = eat!(self, Tok::Punct(P::BraceOpen)) {
+            Ok(self.compound_statement(brace_span)?.0)
+        } else {
+            let stmt = self.statement()?;
+            Ok(vec![stmt])
+        }
+    }
+
+    // TODO: Make sure this is correct.
+    fn if_statement(&mut self) -> Result<Spanned<Stmt>> {
+        let if_span = expect!(self, Tok::Kw(Kw::If));
+        let _paren_span = expect!(self, Tok::Punct(P::ParenOpen));
+        let cond = self.expr()?;
+        let _paren_span = expect!(self, Tok::Punct(P::ParenClose));
+        let then = self.compount_or_single_statement()?;
+        let otherwise = if let Some(_) = eat!(self, Tok::Kw(Kw::Else)) {
+            Some(self.compount_or_single_statement()?)
+        } else {
+            None
+        };
+
+        let span = if_span
+            .extend(cond.1)
+            .extend_option(then.last().map(|s| s.1));
+        Ok((
+            Stmt::If {
+                cond,
+                then,
+                otherwise,
+            },
+            span,
+        ))
     }
 }
 

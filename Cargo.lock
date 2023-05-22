@@ -34,7 +34,6 @@ version = "0.1.0"
 dependencies = [
  "bumpalo",
  "indexmap",
- "lasso",
  "parser",
  "rustc-hash",
 ]
@@ -318,6 +317,7 @@ dependencies = [
  "bitflags",
  "dbg-pls",
  "insta",
+ "lasso",
  "peekmore",
 ]
 
@@ -573,6 +573,8 @@ checksum = "3ed742d4ea2bd1176e236172c8429aaf54486e7ac098db29ffe6529e0ce50973"
 name = "uwucc"
 version = "0.1.0"
 dependencies = [
+ "analysis",
+ "dbg-pls",
  "parser",
 ]
 

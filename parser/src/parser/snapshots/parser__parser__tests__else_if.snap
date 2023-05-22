@@ -29,18 +29,26 @@ expression: "(parsed_pretty, pretty_printed_source)"
                 }),
                 body: [
                     (
-                        Expr(
-                            Postfix(ExprPostfix {
-                                lhs: (Atom(Ident((puts, 18..22))), 18..22),
-                                op: Call([(Atom(String("Hello, world!")), 23..37)]),
-                            }),
-                        ),
-                        22..39,
+                        If {
+                            cond: (Atom(Int(1)), 22..23),
+                            then: [(Expr(Atom(String("a"))), 35..37)],
+                            otherwise: Some([
+                                (
+                                    If {
+                                        cond: (Atom(Int(2)), 55..56),
+                                        then: [(Expr(Atom(String("b"))), 68..70)],
+                                        otherwise: Some([(Expr(Atom(String("c"))), 94..96)]),
+                                    },
+                                    51..70,
+                                ),
+                            ]),
+                        },
+                        18..37,
                     ),
                 ],
             }),
-            1..42,
+            1..106,
         ),
     ]),
-    "int main() {\n    puts(\"Hello, world!\")\n}\n",
+    "int main() {\n    if (1) {\n        \"a\"\n    } else {\n        if (2) {\n            \"b\"\n        } else {\n            \"c\"\n        }\n    }\n}\n",
 )

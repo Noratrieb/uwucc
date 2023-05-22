@@ -3,13 +3,19 @@
 
 use std::fmt::Debug;
 
+use ast::TranslationUnit;
+
+use self::parser::ParserError;
 use crate::token::Token;
 
 pub mod ast;
 mod parser;
 mod pre;
-mod pretty;
+pub mod pretty;
+mod sym;
 mod token;
+
+pub use sym::Symbol;
 
 pub use crate::parser::Parser;
 
@@ -58,17 +64,7 @@ fn lex_and_pre(src: &str) -> impl Iterator<Item = (Token<'_>, Span)> + '_ {
     token::pre_tokens_to_tokens(pre_tokens)
 }
 
-pub fn parse_file(src: &str) {
+pub fn parse_file(src: &str) -> Result<TranslationUnit, ParserError> {
     let lexer = lex_and_pre(src);
-    let declarations = parser::parse_declarations(lexer);
-    match declarations {
-        Ok(declarations) => {
-            dbg_pls::color!(&declarations);
-            let mut printer = pretty::PrettyPrinter::new(std::io::stdout().lock(), false);
-            println!("// START CODE  -------------------");
-            printer.translation_unit(&declarations).unwrap();
-            println!("// END CODE    -------------------");
-        }
-        Err(err) => eprintln!("error :(\n{:#?}", err),
-    }
+    parser::parse_declarations(lexer)
 }
