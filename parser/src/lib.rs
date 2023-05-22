@@ -1,4 +1,3 @@
-#![feature(let_else)]
 #![allow(dead_code)] // TODO: no
 #![warn(rust_2018_idioms)]
 
