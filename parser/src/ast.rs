@@ -3,7 +3,8 @@ use std::fmt::Debug;
 use bitflags::bitflags;
 use dbg_pls::DebugPls;
 
-use crate::{sym::Symbol, Spanned};
+use crate::sym::Symbol;
+pub use crate::Spanned;
 
 pub type Ident = Spanned<Symbol>;
 
@@ -14,7 +15,7 @@ pub type Ident = Spanned<Symbol>;
 #[derive(Debug, DebugPls)]
 pub enum Atom {
     Ident(Ident),
-    Int(i128),
+    Int(u128),
     Float(f64),
     String(String),
     Char(u8),

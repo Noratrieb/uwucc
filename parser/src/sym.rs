@@ -1,4 +1,8 @@
-use std::{cell::RefCell, fmt::Debug, marker::PhantomData};
+use std::{
+    cell::RefCell,
+    fmt::{Debug, Display},
+    marker::PhantomData,
+};
 
 use dbg_pls::DebugPls;
 use lasso::Spur;
@@ -35,5 +39,11 @@ impl Debug for Symbol {
 impl DebugPls for Symbol {
     fn fmt(&self, f: dbg_pls::Formatter<'_>) {
         self.as_str(|s| f.debug_ident(s))
+    }
+}
+
+impl Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        INTERNER.with(|i| f.write_str(i.borrow_mut().resolve(&self.spur)))
     }
 }

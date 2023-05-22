@@ -1,17 +1,19 @@
 use parser::{
-    ast::{DeclAttr, ExternalDecl, Stmt, TranslationUnit, TypeSpecifier},
+    ast::{self, Atom, DeclAttr, Expr, ExternalDecl, Stmt, TranslationUnit, TypeSpecifier},
     Span, Symbol,
 };
 use rustc_hash::FxHashMap;
 
 use crate::{
     ir::{
-        BasicBlock, Branch, ConstValue, Func, Ir, Layout, Operand, Register, RegisterData,
-        Statement, StatementKind,
+        self, BasicBlock, BinKind, Branch, ConstValue, Func, Ir, Layout, Operand, Register,
+        RegisterData, Statement, StatementKind,
     },
     ty::Ty,
     Error,
 };
+
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 struct LoweringCx {}
 
@@ -25,7 +27,13 @@ pub fn lower_translation_unit(ast: &TranslationUnit) -> Result<Ir, Error> {
                 let decl = def.decl.uwnrap_normal();
                 let body = &def.body;
                 let ret_ty = lower_ty(&decl.decl_spec.ty);
-                lower_body(&mut lcx, body, decl.init_declarators[0].1, ret_ty)?;
+                lower_body(
+                    &mut lcx,
+                    body,
+                    decl.init_declarators[0].1,
+                    decl.init_declarators[0].0.declarator.decl.name().0,
+                    ret_ty,
+                )?;
             }
         }
     }
@@ -41,10 +49,18 @@ struct FnLoweringCtxt {
 }
 
 impl FnLoweringCtxt {
+    fn resolve_ident(&self, ident: Symbol) -> Option<&VariableInfo> {
+        self.scopes.iter().rev().find_map(|s| s.get(&ident))
+    }
+
+    fn new_reg(&mut self, name: Option<Symbol>) -> Register {
+        let reg = Register(self.ir.regs.len().try_into().unwrap());
+        self.ir.regs.push(RegisterData { name });
+        reg
+    }
+
     fn alloca(&mut self, layout: &Layout, name: Option<Symbol>, span: Span) -> Register {
-        let bb = self.bb_mut();
-        let reg = Register(bb.regs.len().try_into().unwrap());
-        bb.regs.push(RegisterData { name });
+        let reg = self.new_reg(name);
         let stmt = Statement {
             span,
             kind: StatementKind::Alloca {
@@ -53,8 +69,60 @@ impl FnLoweringCtxt {
                 align: Operand::Const(ConstValue::u64(layout.align)),
             },
         };
-        bb.statements.push(stmt);
+        self.bb_mut().statements.push(stmt);
         reg
+    }
+
+    fn lower_expr(&mut self, expr: &ast::Expr, span: Span) -> Result<Operand> {
+        match expr {
+            ast::Expr::Atom(Atom::Char(c)) => Ok(Operand::Const(ConstValue::Int((*c).into()))),
+            ast::Expr::Atom(Atom::Int(i)) => Ok(Operand::Const(ConstValue::Int(*i as _))),
+            ast::Expr::Atom(Atom::Float(_)) => todo!("no floats"),
+            ast::Expr::Atom(Atom::Ident(_)) => todo!("no idents"),
+            ast::Expr::Atom(Atom::String(_)) => todo!("no string literals"),
+            ast::Expr::Unary(_) => todo!("no unaries"),
+            ast::Expr::Binary(binary) => {
+                let lhs = self.lower_expr(&binary.lhs.0, binary.lhs.1)?;
+                let rhs = self.lower_expr(&binary.rhs.0, binary.rhs.1)?;
+                let kind = match binary.op {
+                    ast::BinaryOp::Arith(ast::ArithOpKind::Mul) => BinKind::Mul,
+                    ast::BinaryOp::Arith(ast::ArithOpKind::Div) => BinKind::Div,
+                    ast::BinaryOp::Arith(ast::ArithOpKind::Mod) => BinKind::Mod,
+                    ast::BinaryOp::Arith(ast::ArithOpKind::Add) => BinKind::Add,
+                    ast::BinaryOp::Arith(ast::ArithOpKind::Sub) => BinKind::Sub,
+                    ast::BinaryOp::Arith(ast::ArithOpKind::Shl) => todo!("shl"),
+                    ast::BinaryOp::Arith(ast::ArithOpKind::Shr) => todo!("shr"),
+                    ast::BinaryOp::Arith(ast::ArithOpKind::BitAnd) => todo!("&"),
+                    ast::BinaryOp::Arith(ast::ArithOpKind::BitXor) => todo!("^"),
+                    ast::BinaryOp::Arith(ast::ArithOpKind::BitOr) => todo!("|"),
+                    ast::BinaryOp::LogicalAnd => todo!("no logical or"),
+                    ast::BinaryOp::LogicalOr => todo!("no logical and"),
+                    ast::BinaryOp::Comparison(ast::ComparisonKind::Lt) => BinKind::Lt,
+                    ast::BinaryOp::Comparison(ast::ComparisonKind::Gt) => BinKind::Gt,
+                    ast::BinaryOp::Comparison(ast::ComparisonKind::LtEq) => BinKind::Leq,
+                    ast::BinaryOp::Comparison(ast::ComparisonKind::GtEq) => BinKind::Geq,
+                    ast::BinaryOp::Comparison(ast::ComparisonKind::Eq) => BinKind::Eq,
+                    ast::BinaryOp::Comparison(ast::ComparisonKind::Neq) => BinKind::Neq,
+                    ast::BinaryOp::Comma => todo!("no comma"),
+                    ast::BinaryOp::Index => todo!("no index"),
+                    ast::BinaryOp::Assign(_) => todo!("no assign"),
+                };
+
+                let reg = self.new_reg(None);
+                let stmt = StatementKind::BinOp {
+                    kind,
+                    lhs,
+                    rhs,
+                    result: reg,
+                };
+                self.bb_mut()
+                    .statements
+                    .push(Statement { span, kind: stmt });
+
+                Ok(Operand::Reg(reg))
+            }
+            Expr::Postfix(_) => todo!(),
+        }
     }
 
     fn bb_mut(&mut self) -> &mut BasicBlock {
@@ -76,16 +144,18 @@ fn lower_body(
     _lcx: &mut LoweringCx,
     body: &[(Stmt, Span)],
     def_span: Span,
+    name: Symbol,
     ret_ty: Ty,
 ) -> Result<Func, Error> {
     let mut cx: FnLoweringCtxt = FnLoweringCtxt {
         scopes: vec![FxHashMap::default()],
         ir: Func {
+            regs: Vec::new(),
             bbs: vec![BasicBlock {
-                regs: Vec::new(),
                 statements: Vec::new(),
                 term: Branch::Goto(0),
             }],
+            name,
             def_span,
             ret_ty,
         },
@@ -134,11 +204,43 @@ fn lower_body(
             Stmt::Continue => todo!(),
             Stmt::Break => todo!(),
             Stmt::Return(_) => todo!(),
-            Stmt::Expr(_) => todo!(),
+            Stmt::Expr(ast::Expr::Binary(ast::ExprBinary {
+                op: ast::BinaryOp::Assign(assign),
+                lhs,
+                rhs,
+            })) => {
+                if assign.is_some() {
+                    todo!("assign operation");
+                }
+                let rhs = cx.lower_expr(&rhs.0, rhs.1)?;
+                let (Expr::Atom(ast::Atom::Ident((ident, ident_span))), _) = **lhs else {
+                    todo!("complex assignments")
+                };
+                let Some(var) = cx.resolve_ident(ident) else {
+                    return Err(Error::new(format!("cannot find variable {ident}"), ident_span));
+                };
+                let stmt = StatementKind::Store {
+                    ptr_reg: var.ptr_to,
+                    value: rhs,
+                    size: Operand::const_u64(var.layout.size),
+                    align: Operand::const_u64(var.layout.align),
+                };
+                cx.bb_mut().statements.push(Statement {
+                    span: *stmt_span,
+                    kind: stmt,
+                });
+            }
+            Stmt::Expr(expr) => {
+                cx.lower_expr(expr, *stmt_span)?;
+            }
         }
     }
 
+    cx.bb_mut().term = Branch::Ret(Operand::Const(ConstValue::Void));
+
     dbg!(&cx);
+
+    println!("{}", ir::func_to_string(&cx.ir));
 
     Ok(cx.ir)
 }

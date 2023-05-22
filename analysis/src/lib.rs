@@ -14,7 +14,10 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn new(msg: String, span: Span) -> Self {
-        Self { msg, span }
+    pub fn new(msg: impl Into<String>, span: Span) -> Self {
+        Self {
+            msg: msg.into(),
+            span,
+        }
     }
 }

@@ -512,7 +512,6 @@ where
 
             // TODO: recover here
             let stmt = self.statement()?;
-
             stmts.push(stmt);
         };
         Ok((stmts, brace_span.extend(end_span)))

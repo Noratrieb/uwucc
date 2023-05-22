@@ -71,7 +71,7 @@ pub enum Keyword {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Constant {
-    Int(i128),
+    Int(u128),
     Float(f64),
     Char(u8),
     // adding enumerations here makes no sense.
