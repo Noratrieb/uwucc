@@ -2,7 +2,10 @@ mod builder;
 
 use std::cell::{Cell, RefCell};
 
-use parser::{ast, Span, Symbol};
+use parser::{
+    ast::{self, IntTy, IntTyKind, IntTySignedness},
+    Span, Symbol,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use self::builder::FuncBuilder;
@@ -144,6 +147,14 @@ struct FnLoweringCtxt<'a, 'cx> {
 }
 
 impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
+    fn dummy_tyl(&self) -> TyLayout<'cx> {
+        self.ty_layout(TyKind::Void)
+    }
+
+    fn ty_layout(&self, ty_kind: TyKind<'cx>) -> TyLayout<'cx> {
+        self.lcx.layout_of(self.lcx.intern_ty(ty_kind))
+    }
+
     fn resolve_ident(&self, ident: Symbol) -> Option<&VariableInfo<'cx>> {
         self.scopes.iter().rev().find_map(|s| s.get(&ident))
     }
@@ -183,7 +194,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
             }
             if let Some((init, init_span)) = &var.init {
                 let init = self.lower_expr(init, *init_span)?;
-                self.build.store(ptr_to, init, tyl.layout, *init_span);
+                self.build.store(ptr_to, init.0, tyl.layout, *init_span);
             }
         }
         Ok(())
@@ -235,7 +246,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     None => cont,
                 };
                 self.build.bb_mut(pred).term = Branch::Switch {
-                    cond,
+                    cond: cond.0,
                     yes: then,
                     no: false_branch,
                 };
@@ -249,7 +260,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
             ast::Stmt::Break => todo!(),
             ast::Stmt::Return(expr) => {
                 let ret = match expr {
-                    Some(expr) => self.lower_expr(&expr.0, expr.1)?,
+                    Some(expr) => self.lower_expr(&expr.0, expr.1)?.0,
                     None => Operand::Const(ConstValue::Void),
                 };
                 self.build.cur_bb_mut().term = Branch::Ret(ret);
@@ -269,7 +280,8 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 let Some(var) = self.resolve_ident(ident) else {
                     return Err(Error::new(format!("cannot find variable {ident}"), ident_span));
                 };
-                self.build.store(var.ptr_to, rhs, var.tyl.layout, stmt_span);
+                self.build
+                    .store(var.ptr_to, rhs.0, var.tyl.layout, stmt_span);
             }
             ast::Stmt::Expr(expr) => {
                 self.lower_expr(expr, stmt_span)?;
@@ -279,17 +291,27 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
         Ok(())
     }
 
-    fn lower_expr(&mut self, expr: &ast::Expr, span: Span) -> Result<Operand> {
+    fn lower_expr(&mut self, expr: &ast::Expr, span: Span) -> Result<(Operand, TyLayout<'cx>)> {
         match expr {
-            ast::Expr::Atom(ast::Atom::Char(c)) => Ok(Operand::Const(ConstValue::Int((*c).into()))),
-            ast::Expr::Atom(ast::Atom::Int(i)) => Ok(Operand::Const(ConstValue::Int(*i as _))),
+            ast::Expr::Atom(ast::Atom::Char(c)) => Ok((
+                Operand::Const(ConstValue::Int((*c).into())),
+                self.ty_layout(TyKind::Char),
+            )),
+            ast::Expr::Atom(ast::Atom::Int(i)) => Ok((
+                Operand::Const(ConstValue::Int(*i as _)),
+                self.ty_layout(TyKind::Integer(IntTy {
+                    sign: IntTySignedness::Signed,
+                    kind: IntTyKind::Int,
+                })),
+            )),
             ast::Expr::Atom(ast::Atom::Float(_)) => todo!("no floats"),
             ast::Expr::Atom(ast::Atom::Ident((ident, ident_span))) => {
                 let Some(var) = self.resolve_ident(*ident) else {
                     return Err(Error::new(format!("cannot find variable {ident}"), *ident_span));
                 };
+                let tyl = var.tyl;
                 let op = self.build.load(var.tyl, var.ptr_to, span);
-                Ok(Operand::Reg(op))
+                Ok((Operand::Reg(op), tyl))
             }
             ast::Expr::Atom(ast::Atom::String(_)) => todo!("no string literals"),
             ast::Expr::Unary(ast::ExprUnary {
@@ -297,33 +319,29 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 rhs: rhs_expr,
             }) => {
                 // First increment/decrement, then return the value.
-                let rhs = self.lower_expr(&rhs_expr.0, rhs_expr.1)?;
-                let lvalue = self.expr_as_lvalue(&rhs_expr.0)?;
-                let bin_kind = if let ast::UnaryOp::Increment = op {
-                    BinKind::Add
-                } else {
-                    BinKind::Sub
-                };
-                let lhs = self.build.load(
-                    self.lcx.layout_of(self.lcx.intern_ty(TyKind::Void)),
-                    lvalue,
-                    span,
-                );
-                let result = self.build.binary(
-                    bin_kind,
-                    Operand::Reg(lhs),
-                    rhs,
-                    span,
-                    self.lcx.layout_of(self.lcx.intern_ty(TyKind::Void)),
-                );
-                self.build.store(
-                    lhs,
-                    rhs,
-                    self.lcx.layout_of(self.lcx.intern_ty(TyKind::Void)).layout,
-                    span,
-                );
+                let (rhs, rhs_tyl) = self.lower_expr(&rhs_expr.0, rhs_expr.1)?;
+                let is_incr = matches!(op, ast::UnaryOp::Increment);
 
-                Ok(Operand::Reg(result))
+                if !rhs_tyl.ty.is_integral() {
+                    return Err(Error::new(
+                        format!(
+                            "cannot {} {}",
+                            if is_incr { "increment" } else { "decrement" },
+                            rhs_tyl.ty
+                        ),
+                        rhs_expr.1,
+                    ));
+                }
+
+                let lvalue = self.expr_as_lvalue(&rhs_expr.0)?;
+                let bin_kind = if is_incr { BinKind::Add } else { BinKind::Sub };
+                let lhs = self.build.load(self.dummy_tyl(), lvalue, span);
+                let result =
+                    self.build
+                        .binary(bin_kind, Operand::Reg(lhs), rhs, span, self.dummy_tyl());
+                self.build.store(lhs, rhs, self.dummy_tyl().layout, span);
+
+                Ok((Operand::Reg(result), self.dummy_tyl()))
             }
             ast::Expr::Unary(unary) => {
                 let rhs = self.lower_expr(&unary.rhs.0, unary.rhs.1)?;
@@ -338,13 +356,8 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     ast::UnaryOp::Bang => UnaryKind::LogicalNot,
                 };
 
-                let reg = self.build.unary(
-                    kind,
-                    rhs,
-                    span,
-                    self.lcx.layout_of(self.lcx.intern_ty(TyKind::Void)),
-                );
-                Ok(Operand::Reg(reg))
+                let reg = self.build.unary(kind, rhs.0, span, self.dummy_tyl());
+                Ok((Operand::Reg(reg), self.dummy_tyl()))
             }
             ast::Expr::Binary(ast::ExprBinary {
                 lhs,
@@ -357,12 +370,8 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 let rhs = self.lower_expr(&rhs.0, rhs.1)?;
 
                 let ptr_to = self.expr_as_lvalue(&lhs.0)?;
-                self.build.store(
-                    ptr_to,
-                    rhs,
-                    self.lcx.layout_of(self.lcx.intern_ty(TyKind::Void)).layout,
-                    span,
-                );
+                self.build
+                    .store(ptr_to, rhs.0, self.dummy_tyl().layout, span);
                 Ok(rhs)
             }
             ast::Expr::Binary(binary) => {
@@ -395,15 +404,11 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     ast::BinaryOp::Assign(_) => unreachable!("assign handled above"),
                 };
 
-                let reg = self.build.binary(
-                    kind,
-                    lhs,
-                    rhs,
-                    span,
-                    self.lcx.layout_of(self.lcx.intern_ty(TyKind::Void)),
-                );
+                let reg = self
+                    .build
+                    .binary(kind, lhs.0, rhs.0, span, self.dummy_tyl());
 
-                Ok(Operand::Reg(reg))
+                Ok((Operand::Reg(reg), self.dummy_tyl()))
             }
             ast::Expr::Postfix(postfix) => {
                 let lhs = self.lower_expr(&postfix.lhs.0, postfix.lhs.1)?;
@@ -411,16 +416,11 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     ast::PostfixOp::Call(args) => {
                         let args = args
                             .iter()
-                            .map(|(arg, sp)| self.lower_expr(arg, *sp))
+                            .map(|(arg, sp)| self.lower_expr(arg, *sp).map(|o| o.0))
                             .collect::<Result<_, _>>()?;
 
-                        let reg = self.build.call(
-                            self.lcx.layout_of(self.lcx.intern_ty(TyKind::Void)),
-                            lhs,
-                            args,
-                            span,
-                        );
-                        Ok(Operand::Reg(reg))
+                        let reg = self.build.call(self.dummy_tyl(), lhs.0, args, span);
+                        Ok((Operand::Reg(reg), self.dummy_tyl()))
                     }
                     ast::PostfixOp::Member(_) => todo!("member expr"),
                     ast::PostfixOp::ArrowMember(_) => todo!("arrow member expr"),

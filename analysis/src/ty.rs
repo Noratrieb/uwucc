@@ -112,3 +112,12 @@ impl Display for Ty<'_> {
         }
     }
 }
+
+impl<'cx> Ty<'cx> {
+    pub fn is_integral(self) -> bool {
+        matches!(
+            *self,
+            TyKind::Char | TyKind::SChar | TyKind::UChar | TyKind::Integer(_)
+        )
+    }
+}
