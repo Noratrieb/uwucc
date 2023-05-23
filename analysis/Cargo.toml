@@ -10,3 +10,4 @@ bumpalo = "3.10.0"
 indexmap = "1.9.1"
 parser = { path = "../parser" }
 rustc-hash = "1.1.0"
+smallvec = { version = "1.10.0", features = ["union"] }

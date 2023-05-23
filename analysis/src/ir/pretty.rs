@@ -186,6 +186,7 @@ impl Display for ConstValue {
         match self {
             ConstValue::Int(int) => <_ as Display>::fmt(int, f),
             ConstValue::Void => f.write_str("void"),
+            ConstValue::StaticPtr(def_id) => write!(f, "{{{}}}", def_id.0),
         }
     }
 }

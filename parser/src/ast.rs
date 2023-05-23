@@ -17,7 +17,7 @@ pub enum Atom {
     Ident(Ident),
     Int(u128),
     Float(f64),
-    String(String),
+    String(Vec<u8>),
     Char(u8),
 }
 
@@ -157,8 +157,11 @@ impl Default for IntTySignedness {
     }
 }
 
-#[derive(Debug, DebugPls, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, DebugPls, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+// N.B: Ord, order matters.
 pub enum IntTyKind {
+    Bool,
+    Char,
     Short,
     Int,
     Long,
@@ -175,13 +178,10 @@ pub struct IntTy {
 pub enum TypeSpecifier {
     Void,
     Char,
-    SChar,
-    UChar,
     Integer(IntTy),
     Float,
     Double,
     LongDouble,
-    Bool,
     // TODO
     // complex
     // atomic-type-specifier
@@ -292,5 +292,15 @@ impl DirectDeclarator {
             DirectDeclarator::Ident(ident) => ident,
             DirectDeclarator::WithParams { ident, .. } => ident,
         }
+    }
+}
+
+impl IntTySignedness {
+    pub fn signed(self) -> bool {
+        matches!(self, Self::Signed)
+    }
+
+    pub fn unsigned(self) -> bool {
+        matches!(self, Self::Unsigned)
     }
 }

@@ -1,4 +1,5 @@
 mod builder;
+mod typeck;
 
 use std::cell::{Cell, RefCell};
 
@@ -24,6 +25,7 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 struct LoweringCx<'cx> {
     tys: RefCell<FxHashSet<&'cx TyKind<'cx>>>,
     layouts: RefCell<FxHashSet<&'cx Layout>>,
+    string_literals: RefCell<FxHashMap<&'cx [u8], DefId>>,
     arena: &'cx bumpalo::Bump,
     next_def_id: Cell<DefId>,
 }
@@ -38,13 +40,10 @@ impl<'cx> LoweringCx<'cx> {
         let kind = match ty {
             ast::TypeSpecifier::Void => TyKind::Void,
             ast::TypeSpecifier::Char => TyKind::Char,
-            ast::TypeSpecifier::SChar => TyKind::SChar,
-            ast::TypeSpecifier::UChar => TyKind::UChar,
             ast::TypeSpecifier::Integer(int) => TyKind::Integer(*int),
             ast::TypeSpecifier::Float => TyKind::Float,
             ast::TypeSpecifier::Double => TyKind::Double,
             ast::TypeSpecifier::LongDouble => TyKind::LongDouble,
-            ast::TypeSpecifier::Bool => TyKind::Bool,
         };
         self.intern_ty(kind)
     }
@@ -73,22 +72,34 @@ impl<'cx> LoweringCx<'cx> {
         }
     }
 
+    fn intern_str_lit(&self, str: &[u8]) -> DefId {
+        let opt_str = self.string_literals.borrow().get(str).copied();
+        match opt_str {
+            Some(lit_def_id) => lit_def_id,
+            None => {
+                let str = self.arena.alloc_slice_copy(str);
+                let lit_def_id = self.next_def_id();
+                self.string_literals.borrow_mut().insert(str, lit_def_id);
+                lit_def_id
+            }
+        }
+    }
+
     fn layout_of(&self, ty: Ty<'cx>) -> TyLayout<'cx> {
         let layout = match *ty {
             TyKind::Void => Layout::size_align(0, 1),
             TyKind::Char => Layout::size_align(1, 1),
-            TyKind::SChar => Layout::size_align(1, 1),
-            TyKind::UChar => Layout::size_align(1, 1),
             TyKind::Integer(int) => match int.kind {
-                parser::ast::IntTyKind::Short => Layout::size_align(2, 2),
-                parser::ast::IntTyKind::Int => Layout::size_align(4, 4),
-                parser::ast::IntTyKind::Long => Layout::size_align(8, 8),
-                parser::ast::IntTyKind::LongLong => Layout::size_align(8, 8),
+                IntTyKind::Bool => Layout::size_align(1, 1),
+                IntTyKind::Char => Layout::size_align(1, 1),
+                IntTyKind::Short => Layout::size_align(2, 2),
+                IntTyKind::Int => Layout::size_align(4, 4),
+                IntTyKind::Long => Layout::size_align(8, 8),
+                IntTyKind::LongLong => Layout::size_align(8, 8),
             },
             TyKind::Float => Layout::size_align(4, 4),
             TyKind::Double => Layout::size_align(8, 8),
             TyKind::LongDouble => Layout::size_align(8, 8),
-            TyKind::Bool => Layout::size_align(1, 1),
             TyKind::Struct(_) => todo!("layout_of struct"),
             TyKind::Union(_) => todo!("layout_of union"),
             TyKind::Enum(_) => todo!("layout_of enum"),
@@ -106,6 +117,7 @@ pub fn lower_translation_unit<'cx>(
     let lcx = LoweringCx {
         tys: RefCell::default(),
         layouts: RefCell::default(),
+        string_literals: RefCell::default(),
         arena,
         next_def_id: Cell::new(DefId(0)),
     };
@@ -139,11 +151,25 @@ pub fn lower_translation_unit<'cx>(
     Ok(ir)
 }
 
-#[derive(Debug)]
 struct FnLoweringCtxt<'a, 'cx> {
     scopes: Vec<FxHashMap<Symbol, VariableInfo<'cx>>>,
     build: FuncBuilder<'a, 'cx>,
     lcx: &'a LoweringCx<'cx>,
+    types: CommonTypes<'cx>,
+}
+
+struct CommonInt<'cx> {
+    signed: Ty<'cx>,
+    unsigned: Ty<'cx>,
+}
+
+struct CommonTypes<'cx> {
+    void: Ty<'cx>,
+    char: Ty<'cx>,
+    su_char: CommonInt<'cx>,
+    short: CommonInt<'cx>,
+    int: CommonInt<'cx>,
+    long: CommonInt<'cx>,
 }
 
 impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
@@ -292,18 +318,15 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
     }
 
     fn lower_expr(&mut self, expr: &ast::Expr, span: Span) -> Result<(Operand, TyLayout<'cx>)> {
-        match expr {
-            ast::Expr::Atom(ast::Atom::Char(c)) => Ok((
+        let op_tyl = match expr {
+            ast::Expr::Atom(ast::Atom::Char(c)) => (
                 Operand::Const(ConstValue::Int((*c).into())),
-                self.ty_layout(TyKind::Char),
-            )),
-            ast::Expr::Atom(ast::Atom::Int(i)) => Ok((
+                self.lcx.layout_of(self.types.char),
+            ),
+            ast::Expr::Atom(ast::Atom::Int(i)) => (
                 Operand::Const(ConstValue::Int(*i as _)),
-                self.ty_layout(TyKind::Integer(IntTy {
-                    sign: IntTySignedness::Signed,
-                    kind: IntTyKind::Int,
-                })),
-            )),
+                self.lcx.layout_of(self.types.int.signed),
+            ),
             ast::Expr::Atom(ast::Atom::Float(_)) => todo!("no floats"),
             ast::Expr::Atom(ast::Atom::Ident((ident, ident_span))) => {
                 let Some(var) = self.resolve_ident(*ident) else {
@@ -311,9 +334,15 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 };
                 let tyl = var.tyl;
                 let op = self.build.load(var.tyl, var.ptr_to, span);
-                Ok((Operand::Reg(op), tyl))
+                (Operand::Reg(op), tyl)
             }
-            ast::Expr::Atom(ast::Atom::String(_)) => todo!("no string literals"),
+            ast::Expr::Atom(ast::Atom::String(string)) => {
+                let lit_def_id = self.lcx.intern_str_lit(string);
+                (
+                    Operand::Const(ConstValue::StaticPtr(lit_def_id)),
+                    self.ty_layout(TyKind::Ptr(self.types.char)),
+                )
+            }
             ast::Expr::Unary(ast::ExprUnary {
                 op: op @ (ast::UnaryOp::Increment | ast::UnaryOp::Decrement),
                 rhs: rhs_expr,
@@ -341,7 +370,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                         .binary(bin_kind, Operand::Reg(lhs), rhs, span, self.dummy_tyl());
                 self.build.store(lhs, rhs, self.dummy_tyl().layout, span);
 
-                Ok((Operand::Reg(result), self.dummy_tyl()))
+                (Operand::Reg(result), self.dummy_tyl())
             }
             ast::Expr::Unary(unary) => {
                 let rhs = self.lower_expr(&unary.rhs.0, unary.rhs.1)?;
@@ -357,7 +386,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 };
 
                 let reg = self.build.unary(kind, rhs.0, span, self.dummy_tyl());
-                Ok((Operand::Reg(reg), self.dummy_tyl()))
+                (Operand::Reg(reg), self.dummy_tyl())
             }
             ast::Expr::Binary(ast::ExprBinary {
                 lhs,
@@ -372,7 +401,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 let ptr_to = self.expr_as_lvalue(&lhs.0)?;
                 self.build
                     .store(ptr_to, rhs.0, self.dummy_tyl().layout, span);
-                Ok(rhs)
+                rhs
             }
             ast::Expr::Binary(binary) => {
                 let lhs = self.lower_expr(&binary.lhs.0, binary.lhs.1)?;
@@ -408,7 +437,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     .build
                     .binary(kind, lhs.0, rhs.0, span, self.dummy_tyl());
 
-                Ok((Operand::Reg(reg), self.dummy_tyl()))
+                (Operand::Reg(reg), self.dummy_tyl())
             }
             ast::Expr::Postfix(postfix) => {
                 let lhs = self.lower_expr(&postfix.lhs.0, postfix.lhs.1)?;
@@ -420,7 +449,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                             .collect::<Result<_, _>>()?;
 
                         let reg = self.build.call(self.dummy_tyl(), lhs.0, args, span);
-                        Ok((Operand::Reg(reg), self.dummy_tyl()))
+                        (Operand::Reg(reg), self.dummy_tyl())
                     }
                     ast::PostfixOp::Member(_) => todo!("member expr"),
                     ast::PostfixOp::ArrowMember(_) => todo!("arrow member expr"),
@@ -430,7 +459,8 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     ast::PostfixOp::Decrement => todo!(),
                 }
             }
-        }
+        };
+        Ok(op_tyl)
     }
 }
 
@@ -461,6 +491,7 @@ fn lower_func<'cx>(
             params.len().try_into().unwrap(),
         ),
         lcx,
+        types: CommonTypes::new(lcx),
     };
 
     for param in params {
@@ -511,4 +542,23 @@ fn lower_func<'cx>(
     }
 
     Ok(cx.build.finish())
+}
+
+impl<'cx> CommonTypes<'cx> {
+    fn new(lcx: &LoweringCx<'cx>) -> Self {
+        let int = |sign, kind| lcx.intern_ty(TyKind::Integer(IntTy { sign, kind }));
+        let int_pair = |kind| CommonInt {
+            signed: int(IntTySignedness::Signed, kind),
+            unsigned: int(IntTySignedness::Unsigned, kind),
+        };
+
+        Self {
+            void: lcx.intern_ty(TyKind::Void),
+            char: lcx.intern_ty(TyKind::Char),
+            su_char: int_pair(IntTyKind::Char),
+            short: int_pair(IntTyKind::Short),
+            int: int_pair(IntTyKind::Int),
+            long: int_pair(IntTyKind::Long),
+        }
+    }
 }

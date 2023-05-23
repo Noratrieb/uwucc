@@ -12,20 +12,17 @@ use parser::{
 
 use crate::ir::DefId;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Eq)]
 pub struct Ty<'cx>(&'cx TyKind<'cx>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TyKind<'cx> {
     Void,
     Char,
-    SChar,
-    UChar,
     Integer(IntTy),
     Float,
     Double,
     LongDouble,
-    Bool,
     Ptr(Ty<'cx>),
     Union(UnionTy<'cx>),
     Struct(StructTy<'cx>),
@@ -84,14 +81,14 @@ impl Display for Ty<'_> {
         match **self {
             TyKind::Void => f.write_str("void"),
             TyKind::Char => f.write_str("char"),
-            TyKind::SChar => f.write_str("signed char"),
-            TyKind::UChar => f.write_str("unsigned char"),
             TyKind::Integer(int) => {
                 match int.sign {
                     IntTySignedness::Signed => f.write_str("signed "),
                     IntTySignedness::Unsigned => f.write_str("unsigned "),
                 }?;
                 match int.kind {
+                    IntTyKind::Bool => f.write_str("_Bool"),
+                    IntTyKind::Char => f.write_str("char"),
                     IntTyKind::Short => f.write_str("short"),
                     IntTyKind::Int => f.write_str("int"),
                     IntTyKind::Long => f.write_str("long"),
@@ -102,7 +99,6 @@ impl Display for Ty<'_> {
             TyKind::Float => f.write_str("float"),
             TyKind::Double => f.write_str("double"),
             TyKind::LongDouble => f.write_str("long double"),
-            TyKind::Bool => f.write_str("_Bool"),
             TyKind::Ptr(ty) => {
                 write!(f, "{ty}*")
             }
@@ -113,11 +109,29 @@ impl Display for Ty<'_> {
     }
 }
 
+impl PartialEq for Ty<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        // Interning.
+        std::ptr::eq(&self.0, &other.0)
+    }
+}
+
+impl Hash for Ty<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Interning.
+        std::ptr::hash(&self.0, state)
+    }
+}
+
 impl<'cx> Ty<'cx> {
     pub fn is_integral(self) -> bool {
-        matches!(
-            *self,
-            TyKind::Char | TyKind::SChar | TyKind::UChar | TyKind::Integer(_)
-        )
+        matches!(*self, TyKind::Char | TyKind::Integer(_))
+    }
+
+    pub fn unwrap_int(self) -> IntTy {
+        match *self {
+            TyKind::Integer(int) => *int,
+            _ => panic!("expected integer type, found {self}"),
+        }
     }
 }

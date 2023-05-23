@@ -187,6 +187,7 @@ pub enum UnaryKind {
 pub enum ConstValue {
     Void,
     Int(u128),
+    StaticPtr(DefId),
 }
 
 impl Func<'_> {

@@ -25,7 +25,9 @@ where
     fn get_lhs(&mut self) -> Result<Spanned<Expr>> {
         let (typ, span) = match self.peek_t()? {
             &(Tok::Ident(ident), span) => (Atom::Ident((Symbol::intern(ident), span)), span),
-            &(Tok::StringLiteral(literal), span) => (Atom::String(literal.to_string()), span),
+            &(Tok::StringLiteral(literal), span) => {
+                (Atom::String(literal.to_string().into_bytes()), span)
+            }
             &(Tok::Constant(Constant::Int(int)), span) => (Atom::Int(int), span),
             &(Tok::Constant(Constant::Float(float)), span) => (Atom::Float(float), span),
             &(Tok::Constant(Constant::Char(char)), span) => (Atom::Char(char), span),

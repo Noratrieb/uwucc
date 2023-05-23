@@ -292,8 +292,10 @@ where
             let ty = match token {
                 Tok::Kw(Kw::Void) => TypeSpecifier::Void,
                 Tok::Kw(Kw::Char) => match signedness {
-                    Some(IntTySignedness::Signed) => TypeSpecifier::SChar,
-                    Some(IntTySignedness::Unsigned) => TypeSpecifier::UChar,
+                    Some(signedness) => TypeSpecifier::Integer(IntTy {
+                        sign: signedness,
+                        kind: IntTyKind::Char,
+                    }),
                     None => TypeSpecifier::Char,
                 },
                 Tok::Kw(Kw::Short) => {
@@ -362,7 +364,10 @@ where
                 }
                 Tok::Kw(Kw::Float) => TypeSpecifier::Float,
                 Tok::Kw(Kw::Double) => TypeSpecifier::Double,
-                Tok::Kw(Kw::Bool) => TypeSpecifier::Bool,
+                Tok::Kw(Kw::Bool) => TypeSpecifier::Integer(IntTy {
+                    sign: IntTySignedness::Unsigned,
+                    kind: IntTyKind::Bool,
+                }),
                 Tok::Kw(Kw::Complex) => {
                     return Err(ParserError::new(
                         span,

@@ -231,8 +231,6 @@ impl<W: Write> PrettyPrinter<W> {
         match spec {
             TypeSpecifier::Void => self.string("void"),
             TypeSpecifier::Char => self.string("char"),
-            TypeSpecifier::SChar => self.string("signed char"),
-            TypeSpecifier::UChar => self.string("unsigned char"),
             TypeSpecifier::Integer(int) => {
                 // prefix the unsignedness if desired
                 if let IntTySignedness::Unsigned = int.sign {
@@ -240,6 +238,8 @@ impl<W: Write> PrettyPrinter<W> {
                 }
 
                 match int.kind {
+                    IntTyKind::Bool => self.string("_Bool"),
+                    IntTyKind::Char => self.string("char"),
                     IntTyKind::Short => self.string("short"),
                     IntTyKind::Int => self.string("int"),
                     IntTyKind::Long => self.string("long"),
@@ -249,7 +249,6 @@ impl<W: Write> PrettyPrinter<W> {
             TypeSpecifier::Float => self.string("float"),
             TypeSpecifier::Double => self.string("double"),
             TypeSpecifier::LongDouble => self.string("long double"),
-            TypeSpecifier::Bool => self.string("_Bool"),
         }
     }
 
@@ -316,7 +315,11 @@ impl<W: Write> PrettyPrinter<W> {
                 Atom::String(string) => {
                     self.string("\"")?;
                     // bare attempt at escpaing
-                    self.string(&string.replace('\"', "\\\""))?;
+                    self.string(
+                        &std::str::from_utf8(string)
+                            .unwrap_or("<invalid utf-8>")
+                            .replace('\"', "\\\""),
+                    )?;
                     self.string("\"")?;
                     Ok(())
                 }
