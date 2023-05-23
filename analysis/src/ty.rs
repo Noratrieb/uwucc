@@ -24,6 +24,7 @@ pub enum TyKind<'cx> {
     Double,
     LongDouble,
     Ptr(Ty<'cx>),
+    Func(&'cx [Ty<'cx>], Ty<'cx>),
     Union(UnionTy<'cx>),
     Struct(StructTy<'cx>),
     Enum(EnumTy),
@@ -95,6 +96,17 @@ impl Display for Ty<'_> {
             TyKind::LongDouble => f.write_str("long double"),
             TyKind::Ptr(ty) => {
                 write!(f, "{ty}*")
+            }
+            TyKind::Func(args, ret) => {
+                write!(f, "{ret}(")?;
+                for (i, arg) in args.iter().enumerate() {
+                    write!(f, "{arg}")?;
+                    if (i + 1) != args.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ")")?;
+                Ok(())
             }
             TyKind::Union(_) => todo!(),
             TyKind::Struct(_) => todo!(),

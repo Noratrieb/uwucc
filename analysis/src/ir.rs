@@ -36,12 +36,28 @@ mod validate;
 
 use std::fmt::{Debug, Display};
 
-use parser::{Span, Symbol};
+use parser::{ast, Span, Symbol};
 pub use pretty::{func_to_string, ir_to_string};
 use rustc_hash::FxHashMap;
 pub use validate::validate;
 
 use crate::ty::Ty;
+
+#[derive(Debug)]
+pub struct VariableInfo<'cx> {
+    pub def_span: Span,
+    // TODO: a static is definitely not a "local" in any way!! deal with that stuff!!!
+    pub decl_attr: ast::DeclAttr,
+    pub tyl: TyLayout<'cx>,
+    pub kind: VariableInfoKind,
+}
+
+#[derive(Debug)]
+pub enum VariableInfoKind {
+    Local { ptr_to: Register },
+    FnDef { def_id: DefId },
+    Static { def_id: DefId },
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DefId(pub u32);
@@ -70,7 +86,7 @@ pub struct Func<'cx> {
     pub def_span: Span,
     pub ret_ty: Ty<'cx>,
     /// The amount of function parameters. regs[..arity] are the parameters.
-    pub arity: u32,
+    pub arity: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -105,14 +121,14 @@ pub enum StatementKind {
         align: Operand,
     },
     Store {
-        ptr_reg: Register,
+        ptr: Operand,
         value: Operand,
         size: Operand,
         align: Operand,
     },
     Load {
         result: Register,
-        ptr_reg: Register,
+        ptr: Operand,
         size: Operand,
         align: Operand,
     },

@@ -1,19 +1,18 @@
 mod builder;
 mod typeck;
 
-use std::cell::{Cell, RefCell};
-
 use parser::{
     ast::{self, ExprBinary, IntSign, IntTy, IntTyKind},
     Span, Symbol,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use self::{builder::FuncBuilder, typeck::Coercion};
 use crate::{
+    ctxt::LoweringCx,
     ir::{
-        self, BbIdx, BinKind, Branch, ConstValue, DefId, Func, Ir, Layout, Operand, Register,
-        TyLayout, UnaryKind,
+        self, BbIdx, BinKind, Branch, ConstValue, Func, Ir, Operand, Register, TyLayout, UnaryKind,
+        VariableInfo, VariableInfoKind,
     },
     ty::{Ty, TyKind},
     Error,
@@ -21,106 +20,11 @@ use crate::{
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[derive(Debug)]
-struct LoweringCx<'cx> {
-    tys: RefCell<FxHashSet<&'cx TyKind<'cx>>>,
-    layouts: RefCell<FxHashSet<&'cx Layout>>,
-    string_literals: RefCell<FxHashMap<&'cx [u8], DefId>>,
-    arena: &'cx bumpalo::Bump,
-    next_def_id: Cell<DefId>,
-}
-
-impl<'cx> LoweringCx<'cx> {
-    fn next_def_id(&self) -> DefId {
-        let def_id = self.next_def_id.get();
-        self.next_def_id.set(DefId(def_id.0 + 1));
-        def_id
-    }
-    fn lower_ty(&self, ty: &ast::TypeSpecifier) -> Ty<'cx> {
-        let kind = match ty {
-            ast::TypeSpecifier::Void => TyKind::Void,
-            ast::TypeSpecifier::Char => TyKind::Char,
-            ast::TypeSpecifier::Integer(int) => TyKind::Int(*int),
-            ast::TypeSpecifier::Float => TyKind::Float,
-            ast::TypeSpecifier::Double => TyKind::Double,
-            ast::TypeSpecifier::LongDouble => TyKind::LongDouble,
-        };
-        self.intern_ty(kind)
-    }
-
-    fn intern_ty(&self, kind: TyKind<'cx>) -> Ty<'cx> {
-        let opt_kind = self.tys.borrow().get(&kind).copied();
-        match opt_kind {
-            Some(ty) => Ty::new_unchecked(ty),
-            None => {
-                let kind = self.arena.alloc(kind);
-                self.tys.borrow_mut().insert(kind);
-                Ty::new_unchecked(kind)
-            }
-        }
-    }
-
-    fn intern_layout(&self, layout: Layout) -> &'cx Layout {
-        let opt_layout = self.layouts.borrow().get(&layout).copied();
-        match opt_layout {
-            Some(layout) => layout,
-            None => {
-                let layout = self.arena.alloc(layout);
-                self.layouts.borrow_mut().insert(layout);
-                layout
-            }
-        }
-    }
-
-    fn intern_str_lit(&self, str: &[u8]) -> DefId {
-        let opt_str = self.string_literals.borrow().get(str).copied();
-        match opt_str {
-            Some(lit_def_id) => lit_def_id,
-            None => {
-                let str = self.arena.alloc_slice_copy(str);
-                let lit_def_id = self.next_def_id();
-                self.string_literals.borrow_mut().insert(str, lit_def_id);
-                lit_def_id
-            }
-        }
-    }
-
-    fn layout_of(&self, ty: Ty<'cx>) -> TyLayout<'cx> {
-        let layout = match *ty {
-            TyKind::Void => Layout::size_align(0, 1),
-            TyKind::Char => Layout::size_align(1, 1),
-            TyKind::Int(int) => match int.1 {
-                IntTyKind::Bool => Layout::size_align(1, 1),
-                IntTyKind::Char => Layout::size_align(1, 1),
-                IntTyKind::Short => Layout::size_align(2, 2),
-                IntTyKind::Int => Layout::size_align(4, 4),
-                IntTyKind::Long => Layout::size_align(8, 8),
-                IntTyKind::LongLong => Layout::size_align(8, 8),
-            },
-            TyKind::Float => Layout::size_align(4, 4),
-            TyKind::Double => Layout::size_align(8, 8),
-            TyKind::LongDouble => Layout::size_align(8, 8),
-            TyKind::Struct(_) => todo!("layout_of struct"),
-            TyKind::Union(_) => todo!("layout_of union"),
-            TyKind::Enum(_) => todo!("layout_of enum"),
-            TyKind::Ptr(_) => Layout::size_align(8, 8),
-        };
-        let layout = self.intern_layout(layout);
-        TyLayout { ty, layout }
-    }
-}
-
 pub fn lower_translation_unit<'cx>(
     arena: &'cx bumpalo::Bump,
     ast: &ast::TranslationUnit,
 ) -> Result<Ir<'cx>, Error> {
-    let lcx = LoweringCx {
-        tys: RefCell::default(),
-        layouts: RefCell::default(),
-        string_literals: RefCell::default(),
-        arena,
-        next_def_id: Cell::new(DefId(0)),
-    };
+    let mut lcx = LoweringCx::new(arena);
 
     let mut ir = Ir {
         funcs: FxHashMap::default(),
@@ -140,8 +44,28 @@ pub fn lower_translation_unit<'cx>(
                     unreachable!("function def needs withparams declarator");
                 };
 
+                let def_id = lcx.next_def_id();
                 let func = lower_func(&lcx, body, def_span, ident.0, ret_ty, params)?;
-                ir.funcs.insert(lcx.next_def_id(), func);
+
+                let args = &*lcx
+                    .arena
+                    .alloc_slice_fill_iter(func.regs[..func.arity].iter().map(|data| data.tyl.ty));
+
+                let ty = lcx.intern_ty(TyKind::Func(args, func.ret_ty));
+
+                let def_span = func.def_span;
+
+                ir.funcs.insert(def_id, func);
+
+                lcx.global_decls.insert(
+                    ident.0,
+                    VariableInfo {
+                        def_span,
+                        decl_attr: ast::DeclAttr::empty(),
+                        tyl: lcx.layout_of(ty),
+                        kind: VariableInfoKind::FnDef { def_id },
+                    },
+                );
             }
         }
     }
@@ -182,7 +106,11 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
     }
 
     fn resolve_ident(&self, ident: Symbol) -> Option<&VariableInfo<'cx>> {
-        self.scopes.iter().rev().find_map(|s| s.get(&ident))
+        self.scopes
+            .iter()
+            .rev()
+            .find_map(|s| s.get(&ident))
+            .or_else(|| self.lcx.global_decls.get(&ident))
     }
 
     fn lower_block(&mut self, body: &[(ast::Stmt, Span)]) -> Result<()> {
@@ -206,9 +134,9 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
 
             let variable_info = VariableInfo {
                 def_span: *def_span,
-                ptr_to,
                 decl_attr,
-                tyl: tyl.clone(),
+                tyl,
+                kind: VariableInfoKind::Local { ptr_to },
             };
             let predeclared = self.scopes.last_mut().unwrap().insert(name, variable_info);
             if let Some(predeclared) = predeclared {
@@ -220,20 +148,29 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
             }
             if let Some((init, init_span)) = &var.init {
                 let init = self.lower_expr(init, *init_span)?;
-                self.build.store(ptr_to, init.0, tyl.layout, *init_span);
+                self.build
+                    .store(Operand::Reg(ptr_to), init.0, tyl.layout, *init_span);
             }
         }
         Ok(())
     }
 
-    fn expr_as_lvalue(&mut self, expr: &ast::Expr) -> Result<Register> {
+    fn expr_as_lvalue(&mut self, expr: &ast::Expr) -> Result<(Operand, TyLayout<'cx>)> {
         let ast::Expr::Atom(ast::Atom::Ident((ident, ident_span))) = *expr else {
             todo!("complex lvalues")
         };
         let Some(var) = self.resolve_ident(ident) else {
             return Err(Error::new(format!("cannot find variable {ident}"), ident_span));
         };
-        Ok(var.ptr_to)
+        Ok(match var.kind {
+            VariableInfoKind::Local { ptr_to } => (Operand::Reg(ptr_to), var.tyl),
+            VariableInfoKind::FnDef { def_id } => {
+                (Operand::Const(ConstValue::StaticPtr(def_id)), var.tyl)
+            }
+            VariableInfoKind::Static { def_id } => {
+                (Operand::Const(ConstValue::StaticPtr(def_id)), var.tyl)
+            }
+        })
     }
 
     fn lower_stmt(&mut self, stmt: &ast::Stmt, stmt_span: Span) -> Result<()> {
@@ -300,14 +237,8 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     todo!("assign operation");
                 }
                 let rhs = self.lower_expr(&rhs.0, rhs.1)?;
-                let (ast::Expr::Atom(ast::Atom::Ident((ident, ident_span))), _) = **lhs else {
-                    todo!("complex assignments")
-                };
-                let Some(var) = self.resolve_ident(ident) else {
-                    return Err(Error::new(format!("cannot find variable {ident}"), ident_span));
-                };
-                self.build
-                    .store(var.ptr_to, rhs.0, var.tyl.layout, stmt_span);
+                let (ptr_to, tyl) = self.expr_as_lvalue(&lhs.0)?;
+                self.build.store(ptr_to, rhs.0, tyl.layout, stmt_span);
             }
             ast::Stmt::Expr(expr) => {
                 self.lower_expr(expr, stmt_span)?;
@@ -333,8 +264,23 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     return Err(Error::new(format!("cannot find variable {ident}"), *ident_span));
                 };
                 let tyl = var.tyl;
-                let op = self.build.load(var.tyl, var.ptr_to, span);
-                (Operand::Reg(op), tyl)
+                match var.kind {
+                    VariableInfoKind::Local { ptr_to } => {
+                        let op = self.build.load(var.tyl, Operand::Reg(ptr_to), span);
+                        (Operand::Reg(op), tyl)
+                    }
+                    VariableInfoKind::FnDef { def_id } => {
+                        (Operand::Const(ConstValue::StaticPtr(def_id)), tyl)
+                    }
+                    VariableInfoKind::Static { def_id } => {
+                        let op = self.build.load(
+                            var.tyl,
+                            Operand::Const(ConstValue::StaticPtr(def_id)),
+                            span,
+                        );
+                        (Operand::Reg(op), tyl)
+                    }
+                }
             }
             ast::Expr::Atom(ast::Atom::String(string)) => {
                 let lit_def_id = self.lcx.intern_str_lit(string);
@@ -362,15 +308,15 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     ));
                 }
 
-                let lvalue = self.expr_as_lvalue(&rhs_expr.0)?;
+                let (lvalue, tyl) = self.expr_as_lvalue(&rhs_expr.0)?;
                 let bin_kind = if is_incr { BinKind::Add } else { BinKind::Sub };
-                let lhs = self.build.load(self.dummy_tyl(), lvalue, span);
-                let result =
-                    self.build
-                        .binary(bin_kind, Operand::Reg(lhs), rhs, span, self.dummy_tyl());
-                self.build.store(lhs, rhs, self.dummy_tyl().layout, span);
+                let lhs = self.build.load(tyl, lvalue, span);
+                let result = self
+                    .build
+                    .binary(bin_kind, Operand::Reg(lhs), rhs, span, tyl);
+                self.build.store(Operand::Reg(lhs), rhs, tyl.layout, span);
 
-                (Operand::Reg(result), self.dummy_tyl())
+                (Operand::Reg(result), tyl)
             }
             ast::Expr::Unary(unary) => {
                 let rhs = self.lower_expr(&unary.rhs.0, unary.rhs.1)?;
@@ -398,9 +344,8 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 }
                 let rhs = self.lower_expr(&rhs.0, rhs.1)?;
 
-                let ptr_to = self.expr_as_lvalue(&lhs.0)?;
-                self.build
-                    .store(ptr_to, rhs.0, self.dummy_tyl().layout, span);
+                let (ptr_to, tyl) = self.expr_as_lvalue(&lhs.0)?;
+                self.build.store(ptr_to, rhs.0, tyl.layout, span);
                 rhs
             }
             ast::Expr::Binary(ExprBinary {
@@ -443,11 +388,10 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     ast::ArithOpKind::BitOr => BinKind::BitOr,
                 };
 
-                let reg = self
-                    .build
-                    .binary(kind, lhs, rhs, span, self.lcx.layout_of(result));
+                let result = self.lcx.layout_of(result);
+                let reg = self.build.binary(kind, lhs, rhs, span, result);
 
-                (Operand::Reg(reg), self.dummy_tyl())
+                (Operand::Reg(reg), result)
             }
             ast::Expr::Binary(ExprBinary {
                 op: ast::BinaryOp::Comparison(comp),
@@ -506,14 +450,6 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
     }
 }
 
-#[derive(Debug)]
-struct VariableInfo<'cx> {
-    def_span: Span,
-    tyl: TyLayout<'cx>,
-    ptr_to: Register,
-    decl_attr: ast::DeclAttr,
-}
-
 fn lower_func<'cx>(
     // may be used later
     lcx: &LoweringCx<'cx>,
@@ -561,9 +497,9 @@ fn lower_func<'cx>(
 
         let variable_info = VariableInfo {
             def_span: span,
-            ptr_to,
             decl_attr,
             tyl,
+            kind: VariableInfoKind::Local { ptr_to },
         };
         let predeclared = cx.scopes.last_mut().unwrap().insert(name, variable_info);
         if let Some(predeclared) = predeclared {
@@ -573,8 +509,12 @@ fn lower_func<'cx>(
             );
         }
 
-        cx.build
-            .store(ptr_to, Operand::Reg(Register(i as _)), tyl.layout, span);
+        cx.build.store(
+            Operand::Reg(ptr_to),
+            Operand::Reg(Register(i as _)),
+            tyl.layout,
+            span,
+        );
     }
 
     cx.lower_block(body)?;

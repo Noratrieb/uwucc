@@ -37,8 +37,13 @@ impl<W: Write> PrettyPrinter<W> {
 
         write!(self.out, "def {}(", func.name)?;
         for param in 0..func.arity {
-            let reg = &func.regs[param as usize];
-            write!(self.out, "{} {}", reg.tyl.ty, print_reg(Register(param)))?;
+            let reg = &func.regs[param];
+            write!(
+                self.out,
+                "{} {}",
+                reg.tyl.ty,
+                print_reg(Register(param as _))
+            )?;
             if (param + 1) != func.arity {
                 write!(self.out, ", ")?;
             }
@@ -70,28 +75,28 @@ impl<W: Write> PrettyPrinter<W> {
                         )
                     }
                     StatementKind::Store {
-                        ptr_reg,
+                        ptr: ptr_reg,
                         value,
                         size,
                         align,
                     } => writeln!(
                         self.out,
                         "    store {}, {}, size={}, align={}",
-                        print_reg(ptr_reg),
+                        print_op(ptr_reg),
                         print_op(value),
                         print_op(size),
                         print_op(align)
                     ),
                     StatementKind::Load {
                         result,
-                        ptr_reg,
+                        ptr: ptr_reg,
                         size,
                         align,
                     } => writeln!(
                         self.out,
                         "    {} = load {}, size={}, align={}",
                         print_reg(result),
-                        print_reg(ptr_reg),
+                        print_op(ptr_reg),
                         print_op(size),
                         print_op(align)
                     ),

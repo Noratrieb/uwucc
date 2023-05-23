@@ -22,7 +22,7 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
         def_span: Span,
         ret_ty: Ty<'cx>,
         lcx: &'a LoweringCx<'cx>,
-        arity: u32,
+        arity: usize,
     ) -> Self {
         Self {
             ir: Func {
@@ -104,11 +104,11 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
         reg
     }
 
-    pub fn load(&mut self, tyl: TyLayout<'cx>, ptr_reg: Register, span: Span) -> Register {
+    pub fn load(&mut self, tyl: TyLayout<'cx>, ptr: Operand, span: Span) -> Register {
         let reg = self.new_reg(None, tyl.clone());
         let stmt = StatementKind::Load {
             result: reg,
-            ptr_reg,
+            ptr,
             size: Operand::const_u64(tyl.layout.size),
             align: Operand::const_u64(tyl.layout.align),
         };
@@ -118,9 +118,9 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
         reg
     }
 
-    pub fn store(&mut self, ptr_reg: Register, rhs: Operand, layout: &Layout, span: Span) {
+    pub fn store(&mut self, ptr: Operand, rhs: Operand, layout: &Layout, span: Span) {
         let stmt = StatementKind::Store {
-            ptr_reg,
+            ptr,
             value: rhs,
             size: Operand::const_u64(layout.size),
             align: Operand::const_u64(layout.align),
