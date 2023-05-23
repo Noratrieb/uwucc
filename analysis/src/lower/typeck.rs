@@ -1,5 +1,5 @@
 use parser::{
-    ast::{IntTy, IntTyKind, IntTySignedness},
+    ast::{IntSign, IntTy, IntTyKind},
     Span,
 };
 use smallvec::{smallvec, SmallVec};
@@ -109,9 +109,9 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     } else {
                         rhs_kind
                     };
-                    let ty = self.lcx.intern_ty(TyKind::Integer(IntTy {
+                    let ty = self.lcx.intern_ty(TyKind::Int(IntTy {
                         kind,
-                        sign: IntTySignedness::Unsigned,
+                        sign: IntSign::Unsigned,
                     }));
                     lhs_coerce.extend(self.coerce(lhs_prom, ty)?);
                     ty
@@ -123,23 +123,58 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
     }
 
     fn coerce(&mut self, from: Ty<'cx>, to: Ty<'cx>) -> Result<Coercions<'cx>> {
-        if from != to {
-            todo!("coerce.")
+        if from == to {
+            return Ok(smallvec![]);
         }
-        Ok(smallvec![])
+        Ok(match (*from, *to) {
+            (
+                TyKind::Char,
+                TyKind::Int(IntTy {
+                    sign: IntSign::Signed,
+                    ..
+                }),
+            ) => {
+                smallvec![(Coercion::SignExt, to)]
+            }
+            (
+                TyKind::Int(IntTy {
+                    sign: IntSign::Signed,
+                    kind: from_kind,
+                }),
+                TyKind::Int(IntTy {
+                    sign: IntSign::Signed,
+                    kind: to_kind,
+                }),
+            ) if from_kind < to_kind => {
+                smallvec![(Coercion::SignExt, to)]
+            }
+            (
+                TyKind::Int(IntTy {
+                    sign: IntSign::Unsigned,
+                    kind: from_kind,
+                }),
+                TyKind::Int(IntTy {
+                    sign: IntSign::Unsigned,
+                    kind: to_kind,
+                }),
+            ) if from_kind < to_kind => {
+                smallvec![(Coercion::ZeroExt, to)]
+            }
+            _ => panic!("i cant coerce that"),
+        })
     }
 
     // §6.3.1.1 Boolean, characters, and integers
     fn promote(&self, ty: Ty<'cx>, span: Span) -> Result<Coercions<'cx>> {
         Ok(match *ty {
             TyKind::Char => smallvec![(Coercion::SignExt, self.types.int.signed)],
-            TyKind::Integer(int) if int.kind < IntTyKind::Int => match int.sign {
-                IntTySignedness::Signed => smallvec![(Coercion::SignExt, self.types.int.signed)],
-                IntTySignedness::Unsigned => {
+            TyKind::Int(int) if int.kind < IntTyKind::Int => match int.sign {
+                IntSign::Signed => smallvec![(Coercion::SignExt, self.types.int.signed)],
+                IntSign::Unsigned => {
                     smallvec![(Coercion::ZeroExt, self.types.int.unsigned)]
                 }
             },
-            TyKind::Integer(_) => smallvec![],
+            TyKind::Int(_) => smallvec![],
             TyKind::Enum(_) => todo!("enums are unimplemented"),
             _ => return Err(Error::new(format!("cannot convert {ty} to integer"), span)),
         })

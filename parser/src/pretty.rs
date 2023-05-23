@@ -6,7 +6,7 @@ use crate::{
     ast::{
         ArithOpKind, Atom, BinaryOp, ComparisonKind, Decl, DeclAttr, DeclSpec, Declarator,
         DirectDeclarator, Expr, ExprBinary, ExprPostfix, ExprUnary, ExternalDecl, FunctionDef,
-        FunctionParamDecl, InitDecl, IntTyKind, IntTySignedness, NormalDecl, PostfixOp, Stmt,
+        FunctionParamDecl, InitDecl, IntTyKind, IntSign, NormalDecl, PostfixOp, Stmt,
         TypeSpecifier, UnaryOp,
     },
     sym::Symbol,
@@ -233,7 +233,7 @@ impl<W: Write> PrettyPrinter<W> {
             TypeSpecifier::Char => self.string("char"),
             TypeSpecifier::Integer(int) => {
                 // prefix the unsignedness if desired
-                if let IntTySignedness::Unsigned = int.sign {
+                if let IntSign::Unsigned = int.sign {
                     self.string("unsigned ")?;
                 }
 

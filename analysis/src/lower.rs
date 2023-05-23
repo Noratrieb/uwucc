@@ -4,12 +4,12 @@ mod typeck;
 use std::cell::{Cell, RefCell};
 
 use parser::{
-    ast::{self, IntTy, IntTyKind, IntTySignedness},
+    ast::{self, ExprBinary, IntTy, IntTyKind, IntSign},
     Span, Symbol,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use self::builder::FuncBuilder;
+use self::{builder::FuncBuilder, typeck::Coercion};
 use crate::{
     ir::{
         self, BbIdx, BinKind, Branch, ConstValue, DefId, Func, Ir, Layout, Operand, Register,
@@ -40,7 +40,7 @@ impl<'cx> LoweringCx<'cx> {
         let kind = match ty {
             ast::TypeSpecifier::Void => TyKind::Void,
             ast::TypeSpecifier::Char => TyKind::Char,
-            ast::TypeSpecifier::Integer(int) => TyKind::Integer(*int),
+            ast::TypeSpecifier::Integer(int) => TyKind::Int(*int),
             ast::TypeSpecifier::Float => TyKind::Float,
             ast::TypeSpecifier::Double => TyKind::Double,
             ast::TypeSpecifier::LongDouble => TyKind::LongDouble,
@@ -89,7 +89,7 @@ impl<'cx> LoweringCx<'cx> {
         let layout = match *ty {
             TyKind::Void => Layout::size_align(0, 1),
             TyKind::Char => Layout::size_align(1, 1),
-            TyKind::Integer(int) => match int.kind {
+            TyKind::Int(int) => match int.kind {
                 IntTyKind::Bool => Layout::size_align(1, 1),
                 IntTyKind::Char => Layout::size_align(1, 1),
                 IntTyKind::Short => Layout::size_align(2, 2),
@@ -403,34 +403,66 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     .store(ptr_to, rhs.0, self.dummy_tyl().layout, span);
                 rhs
             }
-            ast::Expr::Binary(binary) => {
-                let lhs = self.lower_expr(&binary.lhs.0, binary.lhs.1)?;
-                let rhs = self.lower_expr(&binary.rhs.0, binary.rhs.1)?;
-                let kind = match binary.op {
-                    ast::BinaryOp::Arith(ast::ArithOpKind::Mul) => BinKind::Mul,
-                    ast::BinaryOp::Arith(ast::ArithOpKind::Div) => BinKind::Div,
-                    ast::BinaryOp::Arith(ast::ArithOpKind::Mod) => BinKind::Mod,
-                    ast::BinaryOp::Arith(ast::ArithOpKind::Add) => BinKind::Add,
-                    ast::BinaryOp::Arith(ast::ArithOpKind::Sub) => BinKind::Sub,
-                    ast::BinaryOp::Arith(ast::ArithOpKind::Shl) => BinKind::Shl,
-                    ast::BinaryOp::Arith(ast::ArithOpKind::Shr) => BinKind::Shr,
-                    ast::BinaryOp::Arith(ast::ArithOpKind::BitAnd) => BinKind::BitAnd,
-                    ast::BinaryOp::Arith(ast::ArithOpKind::BitXor) => BinKind::BitXor,
-                    ast::BinaryOp::Arith(ast::ArithOpKind::BitOr) => BinKind::BitOr,
-                    ast::BinaryOp::LogicalAnd => todo!("no logical or"),
-                    ast::BinaryOp::LogicalOr => todo!("no logical and"),
-                    ast::BinaryOp::Comparison(ast::ComparisonKind::Lt) => BinKind::Lt,
-                    ast::BinaryOp::Comparison(ast::ComparisonKind::Gt) => BinKind::Gt,
-                    ast::BinaryOp::Comparison(ast::ComparisonKind::LtEq) => BinKind::Leq,
-                    ast::BinaryOp::Comparison(ast::ComparisonKind::GtEq) => BinKind::Geq,
-                    ast::BinaryOp::Comparison(ast::ComparisonKind::Eq) => BinKind::Eq,
-                    ast::BinaryOp::Comparison(ast::ComparisonKind::Neq) => BinKind::Neq,
-                    ast::BinaryOp::Comma => {
-                        // Discard the lhs, evaluate to the rhs.
-                        return Ok(rhs);
-                    }
-                    ast::BinaryOp::Index => todo!("no index"),
-                    ast::BinaryOp::Assign(_) => unreachable!("assign handled above"),
+            ast::Expr::Binary(ExprBinary {
+                op: ast::BinaryOp::Arith(arith),
+                lhs: lhs_expr,
+                rhs: rhs_expr,
+            }) => {
+                let (mut lhs, lhs_tyl) = self.lower_expr(&lhs_expr.0, lhs_expr.1)?;
+                let (mut rhs, rhs_tyl) = self.lower_expr(&rhs_expr.0, rhs_expr.1)?;
+
+                let (result, lhs_coerce, rhs_coerce) =
+                    self.arith_op(lhs_tyl.ty, rhs_tyl.ty, span)?;
+
+                let mut do_coerce = |reg, coerce, span, ty| {
+                    let kind = match coerce {
+                        Coercion::ZeroExt => UnaryKind::Zext,
+                        Coercion::SignExt => UnaryKind::Sext,
+                        Coercion::SignToUnsigned => todo!("hm, what should this do"),
+                    };
+                    Operand::Reg(self.build.unary(kind, reg, span, self.lcx.layout_of(ty)))
+                };
+
+                for (coerce, ty) in lhs_coerce {
+                    lhs = do_coerce(lhs, coerce, span, ty);
+                }
+                for (coerce, ty) in rhs_coerce {
+                    rhs = do_coerce(rhs, coerce, span, ty);
+                }
+
+                let kind = match arith {
+                    ast::ArithOpKind::Mul => BinKind::Mul,
+                    ast::ArithOpKind::Div => BinKind::Div,
+                    ast::ArithOpKind::Mod => BinKind::Mod,
+                    ast::ArithOpKind::Add => BinKind::Add,
+                    ast::ArithOpKind::Sub => BinKind::Sub,
+                    ast::ArithOpKind::Shl => BinKind::Shl,
+                    ast::ArithOpKind::Shr => BinKind::Shr,
+                    ast::ArithOpKind::BitAnd => BinKind::BitAnd,
+                    ast::ArithOpKind::BitXor => BinKind::BitXor,
+                    ast::ArithOpKind::BitOr => BinKind::BitOr,
+                };
+
+                let reg = self
+                    .build
+                    .binary(kind, lhs, rhs, span, self.lcx.layout_of(result));
+
+                (Operand::Reg(reg), self.dummy_tyl())
+            }
+            ast::Expr::Binary(ExprBinary {
+                op: ast::BinaryOp::Comparison(comp),
+                lhs,
+                rhs,
+            }) => {
+                let lhs = self.lower_expr(&lhs.0, lhs.1)?;
+                let rhs = self.lower_expr(&rhs.0, rhs.1)?;
+                let kind = match comp {
+                    ast::ComparisonKind::Lt => BinKind::Lt,
+                    ast::ComparisonKind::Gt => BinKind::Gt,
+                    ast::ComparisonKind::LtEq => BinKind::Leq,
+                    ast::ComparisonKind::GtEq => BinKind::Geq,
+                    ast::ComparisonKind::Eq => BinKind::Eq,
+                    ast::ComparisonKind::Neq => BinKind::Neq,
                 };
 
                 let reg = self
@@ -439,6 +471,16 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
 
                 (Operand::Reg(reg), self.dummy_tyl())
             }
+            ast::Expr::Binary(ExprBinary {
+                op: ast::BinaryOp::Comma,
+                lhs,
+                rhs,
+            }) => {
+                let _lhs = self.lower_expr(&lhs.0, lhs.1)?;
+                // Discard the lhs, evaluate to the rhs.
+                self.lower_expr(&rhs.0, rhs.1)?
+            }
+            ast::Expr::Binary(_) => todo!("other binary"),
             ast::Expr::Postfix(postfix) => {
                 let lhs = self.lower_expr(&postfix.lhs.0, postfix.lhs.1)?;
                 match &postfix.op {
@@ -546,10 +588,10 @@ fn lower_func<'cx>(
 
 impl<'cx> CommonTypes<'cx> {
     fn new(lcx: &LoweringCx<'cx>) -> Self {
-        let int = |sign, kind| lcx.intern_ty(TyKind::Integer(IntTy { sign, kind }));
+        let int = |sign, kind| lcx.intern_ty(TyKind::Int(IntTy { sign, kind }));
         let int_pair = |kind| CommonInt {
-            signed: int(IntTySignedness::Signed, kind),
-            unsigned: int(IntTySignedness::Unsigned, kind),
+            signed: int(IntSign::Signed, kind),
+            unsigned: int(IntSign::Unsigned, kind),
         };
 
         Self {

@@ -4,7 +4,7 @@ use peekmore::PeekMoreIterator;
 use crate::{
     ast::{
         Decl, DeclAttr, DeclSpec, Declarator, DirectDeclarator, ExternalDecl, FunctionDef,
-        FunctionParamDecl, Ident, InitDecl, IntTy, IntTyKind, IntTySignedness, NormalDecl, Stmt,
+        FunctionParamDecl, Ident, InitDecl, IntTy, IntTyKind, IntSign, NormalDecl, Stmt,
         TranslationUnit, TypeSpecifier,
     },
     pre::Punctuator as P,
@@ -335,11 +335,11 @@ where
                         self.peek_t()
                     {
                         // the signed is an integer qualifier
-                        signedness = Some(IntTySignedness::Signed);
+                        signedness = Some(IntSign::Signed);
                         continue;
                     }
                     TypeSpecifier::Integer(IntTy {
-                        sign: IntTySignedness::Signed,
+                        sign: IntSign::Signed,
                         kind: IntTyKind::Int,
                     })
                 }
@@ -354,18 +354,18 @@ where
                         self.peek_t()
                     {
                         // the unsigned is an integer qualifier
-                        signedness = Some(IntTySignedness::Unsigned);
+                        signedness = Some(IntSign::Unsigned);
                         continue;
                     }
                     TypeSpecifier::Integer(IntTy {
-                        sign: IntTySignedness::Unsigned,
+                        sign: IntSign::Unsigned,
                         kind: IntTyKind::Int,
                     })
                 }
                 Tok::Kw(Kw::Float) => TypeSpecifier::Float,
                 Tok::Kw(Kw::Double) => TypeSpecifier::Double,
                 Tok::Kw(Kw::Bool) => TypeSpecifier::Integer(IntTy {
-                    sign: IntTySignedness::Unsigned,
+                    sign: IntSign::Unsigned,
                     kind: IntTyKind::Bool,
                 }),
                 Tok::Kw(Kw::Complex) => {

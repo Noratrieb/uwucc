@@ -6,7 +6,7 @@ use std::{
 
 use indexmap::IndexMap;
 use parser::{
-    ast::{IntTy, IntTyKind, IntTySignedness},
+    ast::{IntTy, IntTyKind, IntSign},
     Symbol,
 };
 
@@ -19,7 +19,7 @@ pub struct Ty<'cx>(&'cx TyKind<'cx>);
 pub enum TyKind<'cx> {
     Void,
     Char,
-    Integer(IntTy),
+    Int(IntTy),
     Float,
     Double,
     LongDouble,
@@ -45,12 +45,6 @@ pub struct StructTy<'cx> {
 pub struct EnumTy {
     pub def_id: DefId,
     pub variants: IndexMap<Symbol, i128>,
-}
-
-impl<'cx> Ty<'cx> {
-    pub fn new_unchecked(kind: &'cx TyKind<'cx>) -> Self {
-        Self(kind)
-    }
 }
 
 impl<'cx> Deref for Ty<'cx> {
@@ -81,10 +75,10 @@ impl Display for Ty<'_> {
         match **self {
             TyKind::Void => f.write_str("void"),
             TyKind::Char => f.write_str("char"),
-            TyKind::Integer(int) => {
+            TyKind::Int(int) => {
                 match int.sign {
-                    IntTySignedness::Signed => f.write_str("signed "),
-                    IntTySignedness::Unsigned => f.write_str("unsigned "),
+                    IntSign::Signed => f.write_str("signed "),
+                    IntSign::Unsigned => f.write_str("unsigned "),
                 }?;
                 match int.kind {
                     IntTyKind::Bool => f.write_str("_Bool"),
@@ -112,25 +106,28 @@ impl Display for Ty<'_> {
 impl PartialEq for Ty<'_> {
     fn eq(&self, other: &Self) -> bool {
         // Interning.
-        std::ptr::eq(&self.0, &other.0)
+        std::ptr::eq(self.0, other.0)
     }
 }
 
 impl Hash for Ty<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Interning.
-        std::ptr::hash(&self.0, state)
+        std::ptr::hash(self.0, state)
     }
 }
 
 impl<'cx> Ty<'cx> {
+    pub fn new_unchecked(kind: &'cx TyKind<'cx>) -> Self {
+        Self(kind)
+    }
     pub fn is_integral(self) -> bool {
-        matches!(*self, TyKind::Char | TyKind::Integer(_))
+        matches!(*self, TyKind::Char | TyKind::Int(_))
     }
 
     pub fn unwrap_int(self) -> IntTy {
         match *self {
-            TyKind::Integer(int) => *int,
+            TyKind::Int(int) => *int,
             _ => panic!("expected integer type, found {self}"),
         }
     }

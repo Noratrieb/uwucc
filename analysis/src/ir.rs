@@ -178,6 +178,8 @@ pub enum BinKind {
 
 #[derive(Debug, Clone, Copy)]
 pub enum UnaryKind {
+    Zext,
+    Sext,
     Negate,
     BitNot,
     LogicalNot,

@@ -145,12 +145,12 @@ pub enum Stmt {
 //
 
 #[derive(Debug, DebugPls, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum IntTySignedness {
+pub enum IntSign {
     Signed,
     Unsigned,
 }
 
-impl Default for IntTySignedness {
+impl Default for IntSign {
     fn default() -> Self {
         // C defaults to unsigned for integers.
         Self::Signed
@@ -170,7 +170,7 @@ pub enum IntTyKind {
 
 #[derive(Debug, DebugPls, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct IntTy {
-    pub sign: IntTySignedness,
+    pub sign: IntSign,
     pub kind: IntTyKind,
 }
 
@@ -295,7 +295,7 @@ impl DirectDeclarator {
     }
 }
 
-impl IntTySignedness {
+impl IntSign {
     pub fn signed(self) -> bool {
         matches!(self, Self::Signed)
     }

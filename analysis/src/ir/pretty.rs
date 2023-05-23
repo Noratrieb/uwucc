@@ -130,6 +130,8 @@ impl<W: Write> PrettyPrinter<W> {
                         "    {} = {} {}",
                         print_reg(result),
                         match kind {
+                            UnaryKind::Zext => "zext",
+                            UnaryKind::Sext => "sext",
                             UnaryKind::Negate => "negate",
                             UnaryKind::BitNot => "bitnot",
                             UnaryKind::LogicalNot => "logicalnot",
