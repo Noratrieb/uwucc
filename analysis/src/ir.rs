@@ -43,6 +43,12 @@ use crate::ty::Ty;
 pub struct DefId(u32);
 
 #[derive(Debug, Clone)]
+pub struct TyLayout {
+    pub ty: Ty,
+    pub layout: Layout,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct Layout {
     pub size: u64,
     pub align: u64,
@@ -69,6 +75,7 @@ pub struct BasicBlock {
 
 #[derive(Debug, Clone)]
 pub struct RegisterData {
+    pub tyl: TyLayout,
     pub name: Option<Symbol>,
 }
 
@@ -110,6 +117,11 @@ pub enum StatementKind {
         result: Register,
         reg: Register,
         amount: Operand,
+    },
+    Call {
+        result: Register,
+        func: Operand,
+        args: Vec<Operand>,
     },
 }
 

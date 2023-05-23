@@ -1,14 +1,14 @@
+mod builder;
+
 use parser::{
     ast::{self, Atom, DeclAttr, Expr, ExternalDecl, Stmt, TranslationUnit, TypeSpecifier},
     Span, Symbol,
 };
 use rustc_hash::FxHashMap;
 
+use self::builder::FuncBuilder;
 use crate::{
-    ir::{
-        self, BasicBlock, BinKind, Branch, ConstValue, Func, Ir, Layout, Operand, Register,
-        RegisterData, Statement, StatementKind,
-    },
+    ir::{BinKind, ConstValue, Func, Ir, Layout, Operand, Register, TyLayout},
     ty::Ty,
     Error,
 };
@@ -44,8 +44,7 @@ pub fn lower_translation_unit(ast: &TranslationUnit) -> Result<Ir, Error> {
 #[derive(Debug)]
 struct FnLoweringCtxt {
     scopes: Vec<FxHashMap<Symbol, VariableInfo>>,
-    ir: Func,
-    current_bb: u32,
+    build: FuncBuilder,
 }
 
 impl FnLoweringCtxt {
@@ -53,24 +52,77 @@ impl FnLoweringCtxt {
         self.scopes.iter().rev().find_map(|s| s.get(&ident))
     }
 
-    fn new_reg(&mut self, name: Option<Symbol>) -> Register {
-        let reg = Register(self.ir.regs.len().try_into().unwrap());
-        self.ir.regs.push(RegisterData { name });
-        reg
+    fn lower_body(&mut self, body: &[(Stmt, Span)]) -> Result<()> {
+        for (stmt, stmt_span) in body {
+            self.lower_stmt(stmt, *stmt_span)?;
+        }
+        Ok(())
     }
 
-    fn alloca(&mut self, layout: &Layout, name: Option<Symbol>, span: Span) -> Register {
-        let reg = self.new_reg(name);
-        let stmt = Statement {
-            span,
-            kind: StatementKind::Alloca {
-                reg,
-                size: Operand::Const(ConstValue::u64(layout.size)),
-                align: Operand::Const(ConstValue::u64(layout.align)),
-            },
-        };
-        self.bb_mut().statements.push(stmt);
-        reg
+    fn lower_stmt(&mut self, stmt: &ast::Stmt, stmt_span: Span) -> Result<()> {
+        match stmt {
+            Stmt::Decl(decl) => {
+                let decl = decl.uwnrap_normal();
+                let ty = lower_ty(&decl.decl_spec.ty);
+                let decl_attr = decl.decl_spec.attrs;
+
+                for (var, def_span) in &decl.init_declarators {
+                    let tyl = layout_of(ty.clone());
+                    let (name, _) = var.declarator.decl.name();
+                    let ptr_to = self.build.alloca(&tyl.layout, Some(name), stmt_span);
+
+                    let variable_info = VariableInfo {
+                        def_span: *def_span,
+                        ptr_to,
+                        decl_attr,
+                        tyl,
+                    };
+                    self.scopes.last_mut().unwrap().insert(name, variable_info);
+                }
+            }
+            Stmt::Labeled { .. } => todo!("labels are not implemented"),
+            Stmt::Compound(_) => todo!("blocks are not implemented"),
+            Stmt::If {
+                cond,
+                then,
+                otherwise,
+            } => todo!(),
+            Stmt::Switch => todo!(),
+            Stmt::While { cond, body } => todo!(),
+            Stmt::For {
+                init_decl,
+                init_expr,
+                cond,
+                post,
+                body,
+            } => todo!(),
+            Stmt::Goto(_) => todo!(),
+            Stmt::Continue => todo!(),
+            Stmt::Break => todo!(),
+            Stmt::Return(_) => todo!(),
+            Stmt::Expr(ast::Expr::Binary(ast::ExprBinary {
+                op: ast::BinaryOp::Assign(assign),
+                lhs,
+                rhs,
+            })) => {
+                if assign.is_some() {
+                    todo!("assign operation");
+                }
+                let rhs = self.lower_expr(&rhs.0, rhs.1)?;
+                let (Expr::Atom(ast::Atom::Ident((ident, ident_span))), _) = **lhs else {
+                    todo!("complex assignments")
+                };
+                let Some(var) = self.resolve_ident(ident) else {
+                    return Err(Error::new(format!("cannot find variable {ident}"), ident_span));
+                };
+                self.build.store(var.ptr_to, rhs, var.tyl.layout, stmt_span);
+            }
+            Stmt::Expr(expr) => {
+                self.lower_expr(expr, stmt_span)?;
+            }
+        }
+
+        Ok(())
     }
 
     fn lower_expr(&mut self, expr: &ast::Expr, span: Span) -> Result<Operand> {
@@ -108,35 +160,40 @@ impl FnLoweringCtxt {
                     ast::BinaryOp::Assign(_) => todo!("no assign"),
                 };
 
-                let reg = self.new_reg(None);
-                let stmt = StatementKind::BinOp {
-                    kind,
-                    lhs,
-                    rhs,
-                    result: reg,
-                };
-                self.bb_mut()
-                    .statements
-                    .push(Statement { span, kind: stmt });
+                let reg = self.build.binary(kind, lhs, rhs, span, layout_of(Ty::Void));
 
                 Ok(Operand::Reg(reg))
             }
-            Expr::Postfix(_) => todo!(),
-        }
-    }
+            Expr::Postfix(postfix) => {
+                let lhs = self.lower_expr(&postfix.lhs.0, postfix.lhs.1)?;
+                match &postfix.op {
+                    ast::PostfixOp::Call(args) => {
+                        let args = args
+                            .iter()
+                            .map(|(arg, sp)| self.lower_expr(arg, *sp))
+                            .collect::<Result<_, _>>()?;
 
-    fn bb_mut(&mut self) -> &mut BasicBlock {
-        &mut self.ir.bbs[self.current_bb as usize]
+                        let reg = self.build.call(layout_of(Ty::Void), lhs, args, span);
+                        Ok(Operand::Reg(reg))
+                    }
+                    ast::PostfixOp::Member(_) => todo!("member expr"),
+                    ast::PostfixOp::ArrowMember(_) => todo!("arrow member expr"),
+                    ast::PostfixOp::Increment => {
+                        todo!("gotta have lvalues")
+                    }
+                    ast::PostfixOp::Decrement => todo!(),
+                }
+            }
+        }
     }
 }
 
 #[derive(Debug)]
 struct VariableInfo {
     def_span: Span,
-    ty: Ty,
+    tyl: TyLayout,
     ptr_to: Register,
     decl_attr: DeclAttr,
-    layout: Layout,
 }
 
 fn lower_body(
@@ -149,100 +206,12 @@ fn lower_body(
 ) -> Result<Func, Error> {
     let mut cx: FnLoweringCtxt = FnLoweringCtxt {
         scopes: vec![FxHashMap::default()],
-        ir: Func {
-            regs: Vec::new(),
-            bbs: vec![BasicBlock {
-                statements: Vec::new(),
-                term: Branch::Goto(0),
-            }],
-            name,
-            def_span,
-            ret_ty,
-        },
-        current_bb: 0,
+        build: FuncBuilder::new(name, def_span, ret_ty),
     };
 
-    for (stmt, stmt_span) in body {
-        match stmt {
-            Stmt::Decl(decl) => {
-                let decl = decl.uwnrap_normal();
-                let ty = lower_ty(&decl.decl_spec.ty);
-                let decl_attr = decl.decl_spec.attrs;
+    cx.lower_body(body)?;
 
-                for (var, def_span) in &decl.init_declarators {
-                    let layout = layout_of(&ty);
-                    let (name, _) = var.declarator.decl.name();
-                    let ptr_to = cx.alloca(&layout, Some(name), *stmt_span);
-
-                    let variable_info = VariableInfo {
-                        def_span: *def_span,
-                        ty: ty.clone(),
-                        ptr_to,
-                        decl_attr,
-                        layout,
-                    };
-                    cx.scopes.last_mut().unwrap().insert(name, variable_info);
-                }
-            }
-            Stmt::Labeled { .. } => todo!("labels are not implemented"),
-            Stmt::Compound(_) => todo!("blocks are not implemented"),
-            Stmt::If {
-                cond,
-                then,
-                otherwise,
-            } => todo!(),
-            Stmt::Switch => todo!(),
-            Stmt::While { cond, body } => todo!(),
-            Stmt::For {
-                init_decl,
-                init_expr,
-                cond,
-                post,
-                body,
-            } => todo!(),
-            Stmt::Goto(_) => todo!(),
-            Stmt::Continue => todo!(),
-            Stmt::Break => todo!(),
-            Stmt::Return(_) => todo!(),
-            Stmt::Expr(ast::Expr::Binary(ast::ExprBinary {
-                op: ast::BinaryOp::Assign(assign),
-                lhs,
-                rhs,
-            })) => {
-                if assign.is_some() {
-                    todo!("assign operation");
-                }
-                let rhs = cx.lower_expr(&rhs.0, rhs.1)?;
-                let (Expr::Atom(ast::Atom::Ident((ident, ident_span))), _) = **lhs else {
-                    todo!("complex assignments")
-                };
-                let Some(var) = cx.resolve_ident(ident) else {
-                    return Err(Error::new(format!("cannot find variable {ident}"), ident_span));
-                };
-                let stmt = StatementKind::Store {
-                    ptr_reg: var.ptr_to,
-                    value: rhs,
-                    size: Operand::const_u64(var.layout.size),
-                    align: Operand::const_u64(var.layout.align),
-                };
-                cx.bb_mut().statements.push(Statement {
-                    span: *stmt_span,
-                    kind: stmt,
-                });
-            }
-            Stmt::Expr(expr) => {
-                cx.lower_expr(expr, *stmt_span)?;
-            }
-        }
-    }
-
-    cx.bb_mut().term = Branch::Ret(Operand::Const(ConstValue::Void));
-
-    dbg!(&cx);
-
-    println!("{}", ir::func_to_string(&cx.ir));
-
-    Ok(cx.ir)
+    Ok(cx.build.finish())
 }
 
 fn lower_ty(ty: &TypeSpecifier) -> Ty {
@@ -259,8 +228,8 @@ fn lower_ty(ty: &TypeSpecifier) -> Ty {
     }
 }
 
-fn layout_of(ty: &Ty) -> Layout {
-    match ty {
+fn layout_of(ty: Ty) -> TyLayout {
+    let layout = match ty {
         Ty::Void => Layout::size_align(0, 1),
         Ty::Char => Layout::size_align(1, 1),
         Ty::SChar => Layout::size_align(1, 1),
@@ -278,5 +247,7 @@ fn layout_of(ty: &Ty) -> Layout {
         Ty::Struct(_) => todo!("layout_of struct"),
         Ty::Union(_) => todo!("layout_of union"),
         Ty::Enum(_) => todo!("layout_of enum"),
-    }
+        Ty::Ptr(_) => Layout::size_align(8, 8),
+    };
+    TyLayout { ty, layout }
 }

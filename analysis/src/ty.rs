@@ -14,6 +14,7 @@ pub enum Ty {
     Double,
     LongDouble,
     Bool,
+    Ptr(Box<Ty>),
     Union(UnionTy),
     Struct(StructTy),
     Enum(EnumTy),

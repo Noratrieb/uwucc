@@ -123,6 +123,22 @@ impl<W: Write> PrettyPrinter<W> {
                         print_reg(reg),
                         print_op(amount)
                     ),
+                    StatementKind::Call {
+                        result,
+                        func,
+                        ref args,
+                    } => {
+                        writeln!(
+                            self.out,
+                            "    {} = call {} ({})",
+                            print_reg(result),
+                            print_op(func),
+                            args.iter()
+                                .map(|arg| print_op(*arg).to_string())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    }
                 }?;
             }
 
