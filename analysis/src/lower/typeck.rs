@@ -49,11 +49,11 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 let lhs_prom_int = lhs_prom.unwrap_int();
                 let rhs_prom_int = rhs_prom.unwrap_int();
 
-                let lhs_sign = lhs_prom_int.sign;
-                let rhs_sign = rhs_prom_int.sign;
+                let lhs_sign = lhs_prom_int.0;
+                let rhs_sign = rhs_prom_int.0;
 
-                let lhs_kind = lhs_prom_int.kind;
-                let rhs_kind = rhs_prom_int.kind;
+                let lhs_kind = lhs_prom_int.1;
+                let rhs_kind = rhs_prom_int.1;
 
                 // If both operands have the same type, then no further conversion is needed.
                 let result = if lhs_prom == rhs_prom {
@@ -61,7 +61,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 // Otherwise, if both operands have signed integer types or both have unsigned
                 // integer types, the operand with the type of lesser integer conversion rank is
                 // converted to the type of the operand with greater rank.
-                } else if (lhs_sign.unsigned() && rhs_prom_int.sign.unsigned())
+                } else if (lhs_sign.unsigned() && rhs_prom_int.0.unsigned())
                     || (lhs_sign.signed() && rhs_sign.signed())
                 {
                     if lhs_kind > rhs_kind {
@@ -109,10 +109,9 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     } else {
                         rhs_kind
                     };
-                    let ty = self.lcx.intern_ty(TyKind::Int(IntTy {
-                        kind,
-                        sign: IntSign::Unsigned,
-                    }));
+                    let ty = self
+                        .lcx
+                        .intern_ty(TyKind::Int(IntTy(IntSign::Unsigned, kind)));
                     lhs_coerce.extend(self.coerce(lhs_prom, ty)?);
                     ty
                 };
@@ -127,36 +126,18 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
             return Ok(smallvec![]);
         }
         Ok(match (*from, *to) {
-            (
-                TyKind::Char,
-                TyKind::Int(IntTy {
-                    sign: IntSign::Signed,
-                    ..
-                }),
-            ) => {
+            (TyKind::Char, TyKind::Int(IntTy(IntSign::Signed, _))) => {
                 smallvec![(Coercion::SignExt, to)]
             }
             (
-                TyKind::Int(IntTy {
-                    sign: IntSign::Signed,
-                    kind: from_kind,
-                }),
-                TyKind::Int(IntTy {
-                    sign: IntSign::Signed,
-                    kind: to_kind,
-                }),
+                TyKind::Int(IntTy(IntSign::Signed, from_kind)),
+                TyKind::Int(IntTy(IntSign::Signed, to_kind)),
             ) if from_kind < to_kind => {
                 smallvec![(Coercion::SignExt, to)]
             }
             (
-                TyKind::Int(IntTy {
-                    sign: IntSign::Unsigned,
-                    kind: from_kind,
-                }),
-                TyKind::Int(IntTy {
-                    sign: IntSign::Unsigned,
-                    kind: to_kind,
-                }),
+                TyKind::Int(IntTy(IntSign::Unsigned, from_kind)),
+                TyKind::Int(IntTy(IntSign::Unsigned, to_kind)),
             ) if from_kind < to_kind => {
                 smallvec![(Coercion::ZeroExt, to)]
             }
@@ -168,7 +149,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
     fn promote(&self, ty: Ty<'cx>, span: Span) -> Result<Coercions<'cx>> {
         Ok(match *ty {
             TyKind::Char => smallvec![(Coercion::SignExt, self.types.int.signed)],
-            TyKind::Int(int) if int.kind < IntTyKind::Int => match int.sign {
+            TyKind::Int(int) if int.1 < IntTyKind::Int => match int.0 {
                 IntSign::Signed => smallvec![(Coercion::SignExt, self.types.int.signed)],
                 IntSign::Unsigned => {
                     smallvec![(Coercion::ZeroExt, self.types.int.unsigned)]

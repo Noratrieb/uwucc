@@ -4,7 +4,7 @@ use peekmore::PeekMoreIterator;
 use crate::{
     ast::{
         Decl, DeclAttr, DeclSpec, Declarator, DirectDeclarator, ExternalDecl, FunctionDef,
-        FunctionParamDecl, Ident, InitDecl, IntTy, IntTyKind, IntSign, NormalDecl, Stmt,
+        FunctionParamDecl, Ident, InitDecl, IntSign, IntTy, IntTyKind, NormalDecl, Stmt,
         TranslationUnit, TypeSpecifier,
     },
     pre::Punctuator as P,
@@ -292,36 +292,29 @@ where
             let ty = match token {
                 Tok::Kw(Kw::Void) => TypeSpecifier::Void,
                 Tok::Kw(Kw::Char) => match signedness {
-                    Some(signedness) => TypeSpecifier::Integer(IntTy {
-                        sign: signedness,
-                        kind: IntTyKind::Char,
-                    }),
+                    Some(signedness) => TypeSpecifier::Integer(IntTy(signedness, IntTyKind::Char)),
                     None => TypeSpecifier::Char,
                 },
                 Tok::Kw(Kw::Short) => {
                     eat!(self, Tok::Kw(Kw::Int));
-                    TypeSpecifier::Integer(IntTy {
-                        sign: signedness.unwrap_or_default(),
-                        kind: IntTyKind::Short,
-                    })
+                    TypeSpecifier::Integer(IntTy(signedness.unwrap_or_default(), IntTyKind::Short))
                 }
-                Tok::Kw(Kw::Int) => TypeSpecifier::Integer(IntTy {
-                    sign: signedness.unwrap_or_default(),
-                    kind: IntTyKind::Int,
-                }),
+                Tok::Kw(Kw::Int) => {
+                    TypeSpecifier::Integer(IntTy(signedness.unwrap_or_default(), IntTyKind::Int))
+                }
                 Tok::Kw(Kw::Long) => {
                     if eat!(self, Tok::Kw(Kw::Long)).is_some() {
                         eat!(self, Tok::Kw(Kw::Int));
-                        TypeSpecifier::Integer(IntTy {
-                            sign: signedness.unwrap_or_default(),
-                            kind: IntTyKind::LongLong,
-                        })
+                        TypeSpecifier::Integer(IntTy(
+                            signedness.unwrap_or_default(),
+                            IntTyKind::LongLong,
+                        ))
                     } else {
                         eat!(self, Tok::Kw(Kw::Int));
-                        TypeSpecifier::Integer(IntTy {
-                            sign: signedness.unwrap_or_default(),
-                            kind: IntTyKind::Long,
-                        })
+                        TypeSpecifier::Integer(IntTy(
+                            signedness.unwrap_or_default(),
+                            IntTyKind::Long,
+                        ))
                     }
                 }
                 Tok::Kw(Kw::Signed) => {
@@ -338,10 +331,7 @@ where
                         signedness = Some(IntSign::Signed);
                         continue;
                     }
-                    TypeSpecifier::Integer(IntTy {
-                        sign: IntSign::Signed,
-                        kind: IntTyKind::Int,
-                    })
+                    TypeSpecifier::Integer(IntTy(IntSign::Signed, IntTyKind::Int))
                 }
                 Tok::Kw(Kw::Unsigned) => {
                     if signedness.is_some() {
@@ -357,17 +347,13 @@ where
                         signedness = Some(IntSign::Unsigned);
                         continue;
                     }
-                    TypeSpecifier::Integer(IntTy {
-                        sign: IntSign::Unsigned,
-                        kind: IntTyKind::Int,
-                    })
+                    TypeSpecifier::Integer(IntTy(IntSign::Unsigned, IntTyKind::Int))
                 }
                 Tok::Kw(Kw::Float) => TypeSpecifier::Float,
                 Tok::Kw(Kw::Double) => TypeSpecifier::Double,
-                Tok::Kw(Kw::Bool) => TypeSpecifier::Integer(IntTy {
-                    sign: IntSign::Unsigned,
-                    kind: IntTyKind::Bool,
-                }),
+                Tok::Kw(Kw::Bool) => {
+                    TypeSpecifier::Integer(IntTy(IntSign::Unsigned, IntTyKind::Bool))
+                }
                 Tok::Kw(Kw::Complex) => {
                     return Err(ParserError::new(
                         span,

@@ -4,7 +4,7 @@ mod typeck;
 use std::cell::{Cell, RefCell};
 
 use parser::{
-    ast::{self, ExprBinary, IntTy, IntTyKind, IntSign},
+    ast::{self, ExprBinary, IntSign, IntTy, IntTyKind},
     Span, Symbol,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -89,7 +89,7 @@ impl<'cx> LoweringCx<'cx> {
         let layout = match *ty {
             TyKind::Void => Layout::size_align(0, 1),
             TyKind::Char => Layout::size_align(1, 1),
-            TyKind::Int(int) => match int.kind {
+            TyKind::Int(int) => match int.1 {
                 IntTyKind::Bool => Layout::size_align(1, 1),
                 IntTyKind::Char => Layout::size_align(1, 1),
                 IntTyKind::Short => Layout::size_align(2, 2),
@@ -588,7 +588,7 @@ fn lower_func<'cx>(
 
 impl<'cx> CommonTypes<'cx> {
     fn new(lcx: &LoweringCx<'cx>) -> Self {
-        let int = |sign, kind| lcx.intern_ty(TyKind::Int(IntTy { sign, kind }));
+        let int = |sign, kind| lcx.intern_ty(TyKind::Int(IntTy(sign, kind)));
         let int_pair = |kind| CommonInt {
             signed: int(IntSign::Signed, kind),
             unsigned: int(IntSign::Unsigned, kind),

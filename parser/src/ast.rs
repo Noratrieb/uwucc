@@ -169,10 +169,7 @@ pub enum IntTyKind {
 }
 
 #[derive(Debug, DebugPls, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct IntTy {
-    pub sign: IntSign,
-    pub kind: IntTyKind,
-}
+pub struct IntTy(pub IntSign, pub IntTyKind);
 
 #[derive(Debug, DebugPls, Clone)]
 pub enum TypeSpecifier {

@@ -6,7 +6,7 @@ use std::{
 
 use indexmap::IndexMap;
 use parser::{
-    ast::{IntTy, IntTyKind, IntSign},
+    ast::{IntSign, IntTy, IntTyKind},
     Symbol,
 };
 
@@ -76,11 +76,11 @@ impl Display for Ty<'_> {
             TyKind::Void => f.write_str("void"),
             TyKind::Char => f.write_str("char"),
             TyKind::Int(int) => {
-                match int.sign {
+                match int.0 {
                     IntSign::Signed => f.write_str("signed "),
                     IntSign::Unsigned => f.write_str("unsigned "),
                 }?;
-                match int.kind {
+                match int.1 {
                     IntTyKind::Bool => f.write_str("_Bool"),
                     IntTyKind::Char => f.write_str("char"),
                     IntTyKind::Short => f.write_str("short"),
