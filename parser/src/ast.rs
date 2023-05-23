@@ -169,7 +169,7 @@ pub struct IntTy {
     pub kind: IntTyKind,
 }
 
-#[derive(Debug, DebugPls)]
+#[derive(Debug, DebugPls, Clone)]
 pub enum TypeSpecifier {
     Void,
     Char,
@@ -205,7 +205,7 @@ impl DebugPls for DeclAttr {
     }
 }
 
-#[derive(Debug, DebugPls)]
+#[derive(Debug, DebugPls, Clone)]
 pub struct DeclSpec {
     pub ty: TypeSpecifier,
     pub attrs: DeclAttr,
@@ -229,13 +229,13 @@ pub struct NormalDecl {
     pub init_declarators: Vec<Spanned<InitDecl>>,
 }
 
-#[derive(Debug, DebugPls)]
+#[derive(Debug, DebugPls, Clone)]
 pub struct FunctionParamDecl {
     pub decl_spec: Spanned<DeclSpec>,
     pub declarator: Spanned<Declarator>,
 }
 
-#[derive(Debug, DebugPls)]
+#[derive(Debug, DebugPls, Clone)]
 pub enum DirectDeclarator {
     Ident(Ident),
     WithParams {
@@ -244,7 +244,7 @@ pub enum DirectDeclarator {
     },
 }
 
-#[derive(Debug, DebugPls)]
+#[derive(Debug, DebugPls, Clone)]
 pub struct Declarator {
     pub decl: DirectDeclarator,
     pub pointer: bool,
@@ -265,7 +265,7 @@ pub enum ExternalDecl {
 pub type TranslationUnit = Vec<Spanned<ExternalDecl>>;
 
 impl Decl {
-    pub fn uwnrap_normal(&self) -> &NormalDecl {
+    pub fn unwrap_normal(&self) -> &NormalDecl {
         match self {
             Decl::Normal(decl) => decl,
             Decl::StaticAssert => {

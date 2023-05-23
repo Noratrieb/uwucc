@@ -4,7 +4,8 @@ use std::cell::{Cell, RefCell};
 
 use parser::{
     ast::{
-        self, Atom, DeclAttr, Expr, ExprBinary, ExternalDecl, Stmt, TranslationUnit, TypeSpecifier,
+        self, Atom, DeclAttr, Expr, ExprBinary, ExternalDecl, InitDecl, Stmt, TranslationUnit,
+        TypeSpecifier,
     },
     Span, Symbol,
 };
@@ -120,16 +121,17 @@ pub fn lower_translation_unit<'cx>(
         match decl {
             ExternalDecl::Decl(_) => todo!("decl is unsupported"),
             ExternalDecl::FunctionDef(def) => {
-                let decl = def.decl.uwnrap_normal();
+                let decl = def.decl.unwrap_normal();
                 let body = &def.body;
                 let ret_ty = lcx.lower_ty(&decl.decl_spec.ty);
-                let func = lower_body(
-                    &lcx,
-                    body,
-                    decl.init_declarators[0].1,
-                    decl.init_declarators[0].0.declarator.decl.name().0,
-                    ret_ty,
-                )?;
+
+                let (ref declarator, def_span) = decl.init_declarators[0];
+
+                let ast::DirectDeclarator::WithParams { ident, params } = &declarator.declarator.decl else {
+                    unreachable!("function def needs withparams declarator");
+                };
+
+                let func = lower_func(&lcx, body, def_span, ident.0, ret_ty, params)?;
                 ir.funcs.insert(lcx.next_def_id(), func);
             }
         }
@@ -161,37 +163,42 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
         Ok(())
     }
 
+    fn declare_local(&mut self, decl: &ast::Decl, span: Span) -> Result<()> {
+        let decl = decl.unwrap_normal();
+        let ty = self.lcx.lower_ty(&decl.decl_spec.ty);
+        let decl_attr = decl.decl_spec.attrs;
+
+        for (var, def_span) in &decl.init_declarators {
+            let tyl = self.lcx.layout_of(ty);
+            let (name, name_span) = var.declarator.decl.name();
+            let ptr_to = self.build.alloca(tyl.layout, Some(name), span);
+
+            let variable_info = VariableInfo {
+                def_span: *def_span,
+                ptr_to,
+                decl_attr,
+                tyl: tyl.clone(),
+            };
+            let predeclared = self.scopes.last_mut().unwrap().insert(name, variable_info);
+            if let Some(predeclared) = predeclared {
+                return Err(Error::new(
+                    format!("variable {name} has already been declared"),
+                    name_span,
+                )
+                .note_spanned("already declared here", predeclared.def_span));
+            }
+            if let Some((init, init_span)) = &var.init {
+                let init = self.lower_expr(init, *init_span)?;
+                self.build.store(ptr_to, init, tyl.layout, *init_span);
+            }
+        }
+        Ok(())
+    }
+
     fn lower_stmt(&mut self, stmt: &ast::Stmt, stmt_span: Span) -> Result<()> {
         match stmt {
             Stmt::Decl(decl) => {
-                let decl = decl.uwnrap_normal();
-                let ty = self.lcx.lower_ty(&decl.decl_spec.ty);
-                let decl_attr = decl.decl_spec.attrs;
-
-                for (var, def_span) in &decl.init_declarators {
-                    let tyl = self.lcx.layout_of(ty);
-                    let (name, name_span) = var.declarator.decl.name();
-                    let ptr_to = self.build.alloca(tyl.layout, Some(name), stmt_span);
-
-                    let variable_info = VariableInfo {
-                        def_span: *def_span,
-                        ptr_to,
-                        decl_attr,
-                        tyl: tyl.clone(),
-                    };
-                    let predeclared = self.scopes.last_mut().unwrap().insert(name, variable_info);
-                    if let Some(predeclared) = predeclared {
-                        return Err(Error::new(
-                            format!("variable {name} has already been declared"),
-                            name_span,
-                        )
-                        .note_spanned("already declared here", predeclared.def_span));
-                    }
-                    if let Some((init, init_span)) = &var.init {
-                        let init = self.lower_expr(init, *init_span)?;
-                        self.build.store(ptr_to, init, tyl.layout, *init_span);
-                    }
-                }
+                self.declare_local(decl, stmt_span)?;
             }
             Stmt::Labeled { .. } => todo!("labels are not implemented"),
             Stmt::Compound(block) => {
@@ -393,19 +400,67 @@ struct VariableInfo<'cx> {
     decl_attr: DeclAttr,
 }
 
-fn lower_body<'cx>(
+fn lower_func<'cx>(
     // may be used later
     lcx: &LoweringCx<'cx>,
     body: &[(Stmt, Span)],
     def_span: Span,
     name: Symbol,
     ret_ty: Ty<'cx>,
+    params: &[ast::FunctionParamDecl],
 ) -> Result<Func<'cx>, Error> {
     let mut cx = FnLoweringCtxt {
-        scopes: vec![],
-        build: FuncBuilder::new(name, def_span, ret_ty, lcx),
+        scopes: vec![Default::default()],
+        build: FuncBuilder::new(
+            name,
+            def_span,
+            ret_ty,
+            lcx,
+            params.len().try_into().unwrap(),
+        ),
         lcx,
     };
+
+    for param in params {
+        let decl_spec = &param.decl_spec.0;
+        let ty = lcx.lower_ty(&decl_spec.ty);
+        let tyl = lcx.layout_of(ty);
+        // Create all the parameter registers.
+        let _ = cx
+            .build
+            .new_reg(Some(param.declarator.0.decl.name().0), tyl);
+    }
+
+    for (i, param) in params.iter().enumerate() {
+        // For every param, we create an allocation and store the register into it.
+        let param_reg_data = &cx.build.ir.regs[i];
+        let name = param.declarator.0.decl.name().0;
+
+        let decl_spec = &param.decl_spec.0;
+        let decl_attr = decl_spec.attrs;
+        let tyl = param_reg_data.tyl;
+        let span = param.declarator.1;
+
+        let alloca_name = Symbol::intern(&format!("{}.local", name));
+        let ptr_to = cx.build.alloca(tyl.layout, Some(alloca_name), span);
+
+        let variable_info = VariableInfo {
+            def_span: span,
+            ptr_to,
+            decl_attr,
+            tyl,
+        };
+        let predeclared = cx.scopes.last_mut().unwrap().insert(name, variable_info);
+        if let Some(predeclared) = predeclared {
+            return Err(
+                Error::new(format!("parameter {name} has already been declared"), span)
+                    .note_spanned("already declared here", predeclared.def_span),
+            );
+        }
+
+        cx.build
+            .store(ptr_to, Operand::Reg(Register(i as _)), tyl.layout, span);
+    }
 
     cx.lower_block(body)?;
 

@@ -1,10 +1,14 @@
 use std::{
+    fmt::Display,
     hash::{Hash, Hasher},
     ops::Deref,
 };
 
 use indexmap::IndexMap;
-use parser::{ast::IntTy, Symbol};
+use parser::{
+    ast::{IntTy, IntTyKind, IntTySignedness},
+    Symbol,
+};
 
 use crate::ir::DefId;
 
@@ -72,5 +76,39 @@ impl Hash for StructTy<'_> {
 impl Hash for EnumTy {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.def_id.hash(state)
+    }
+}
+
+impl Display for Ty<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match **self {
+            TyKind::Void => f.write_str("void"),
+            TyKind::Char => f.write_str("char"),
+            TyKind::SChar => f.write_str("signed char"),
+            TyKind::UChar => f.write_str("unsigned char"),
+            TyKind::Integer(int) => {
+                match int.sign {
+                    IntTySignedness::Signed => f.write_str("signed "),
+                    IntTySignedness::Unsigned => f.write_str("unsigned "),
+                }?;
+                match int.kind {
+                    IntTyKind::Short => f.write_str("short"),
+                    IntTyKind::Int => f.write_str("int"),
+                    IntTyKind::Long => f.write_str("long"),
+                    IntTyKind::LongLong => f.write_str("long long"),
+                }?;
+                Ok(())
+            }
+            TyKind::Float => f.write_str("float"),
+            TyKind::Double => f.write_str("double"),
+            TyKind::LongDouble => f.write_str("long double"),
+            TyKind::Bool => f.write_str("_Bool"),
+            TyKind::Ptr(ty) => {
+                write!(f, "{ty}*")
+            }
+            TyKind::Union(_) => todo!(),
+            TyKind::Struct(_) => todo!(),
+            TyKind::Enum(_) => todo!(),
+        }
     }
 }

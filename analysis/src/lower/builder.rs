@@ -17,7 +17,13 @@ pub(super) struct FuncBuilder<'a, 'cx> {
 }
 
 impl<'a, 'cx> FuncBuilder<'a, 'cx> {
-    pub fn new(name: Symbol, def_span: Span, ret_ty: Ty<'cx>, lcx: &'a LoweringCx<'cx>) -> Self {
+    pub fn new(
+        name: Symbol,
+        def_span: Span,
+        ret_ty: Ty<'cx>,
+        lcx: &'a LoweringCx<'cx>,
+        arity: u32,
+    ) -> Self {
         Self {
             ir: Func {
                 regs: Vec::new(),
@@ -28,6 +34,7 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
                 name,
                 def_span,
                 ret_ty,
+                arity,
             },
             current_bb: BbIdx(0),
             lcx,

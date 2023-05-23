@@ -69,6 +69,8 @@ pub struct Func<'cx> {
     pub name: Symbol,
     pub def_span: Span,
     pub ret_ty: Ty<'cx>,
+    /// The amount of function parameters. regs[..arity] are the parameters.
+    pub arity: u32,
 }
 
 #[derive(Clone, Copy)]

@@ -28,14 +28,22 @@ impl<W: Write> PrettyPrinter<W> {
     }
 
     pub fn func(&mut self, func: &Func<'_>) -> Result {
-        writeln!(self.out, "def {}() {{", func.name)?;
-
         let print_reg = |reg: Register| {
             display_fn(move |f| match func.regs[reg.0 as usize].name {
                 None => write!(f, "%{}", reg.0),
                 Some(name) => write!(f, "%{name}"),
             })
         };
+
+        write!(self.out, "def {}(", func.name)?;
+        for param in 0..func.arity {
+            let reg = &func.regs[param as usize];
+            write!(self.out, "{} {}", reg.tyl.ty, print_reg(Register(param)))?;
+            if (param + 1) != func.arity {
+                write!(self.out, ", ")?;
+            }
+        }
+        writeln!(self.out, ") {{",)?;
 
         let print_op = |op: Operand| {
             display_fn(move |f| match op {
