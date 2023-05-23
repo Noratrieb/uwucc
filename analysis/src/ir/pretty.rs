@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result, Write};
 
-use super::{BbIdx, BinKind, Branch, ConstValue, Func, Ir, Operand, StatementKind};
+use super::{BbIdx, BinKind, Branch, ConstValue, Func, Ir, Operand, StatementKind, UnaryKind};
 use crate::ir::Register;
 
 pub fn ir_to_string(ir: &Ir<'_>) -> String {
@@ -123,6 +123,17 @@ impl<W: Write> PrettyPrinter<W> {
                             BinKind::BitXor => "bitxor",
                         },
                         print_op(lhs),
+                        print_op(rhs)
+                    ),
+                    StatementKind::UnaryOperation { rhs, kind, result } => writeln!(
+                        self.out,
+                        "    {} = {} {}",
+                        print_reg(result),
+                        match kind {
+                            UnaryKind::Negate => "negate",
+                            UnaryKind::BitNot => "bitnot",
+                            UnaryKind::LogicalNot => "logicalnot",
+                        },
                         print_op(rhs)
                     ),
                     StatementKind::PtrOffset {

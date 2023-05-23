@@ -4,7 +4,7 @@ use super::LoweringCx;
 use crate::{
     ir::{
         self, BasicBlock, BbIdx, BinKind, Branch, ConstValue, Func, Layout, Operand, Register,
-        RegisterData, Statement, StatementKind, TyLayout,
+        RegisterData, Statement, StatementKind, TyLayout, UnaryKind,
     },
     ty::{Ty, TyKind},
 };
@@ -76,6 +76,25 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
         let stmt = StatementKind::BinOp {
             kind,
             lhs,
+            rhs,
+            result: reg,
+        };
+        self.cur_bb_mut()
+            .statements
+            .push(Statement { span, kind: stmt });
+        reg
+    }
+
+    pub fn unary(
+        &mut self,
+        kind: UnaryKind,
+        rhs: Operand,
+        span: Span,
+        result_tyl: TyLayout<'cx>,
+    ) -> Register {
+        let reg = self.new_reg(None, result_tyl);
+        let stmt = StatementKind::UnaryOperation {
+            kind,
             rhs,
             result: reg,
         };

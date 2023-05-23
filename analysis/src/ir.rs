@@ -122,6 +122,11 @@ pub enum StatementKind {
         rhs: Operand,
         result: Register,
     },
+    UnaryOperation {
+        rhs: Operand,
+        kind: UnaryKind,
+        result: Register,
+    },
     PtrOffset {
         result: Register,
         reg: Register,
@@ -169,6 +174,13 @@ pub enum BinKind {
     BitAnd,
     BitOr,
     BitXor,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum UnaryKind {
+    Negate,
+    BitNot,
+    LogicalNot,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -376,6 +376,8 @@ impl<W: Write> PrettyPrinter<W> {
 
     fn unary(&mut self, unary: &ExprUnary) -> Result {
         self.string(match unary.op {
+            UnaryOp::Increment => "++",
+            UnaryOp::Decrement => "--",
             UnaryOp::AddrOf => "&",
             UnaryOp::Deref => "*",
             UnaryOp::Plus => "+",

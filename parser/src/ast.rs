@@ -23,6 +23,8 @@ pub enum Atom {
 
 #[derive(Debug, DebugPls)]
 pub enum UnaryOp {
+    Increment,
+    Decrement,
     AddrOf,
     Deref,
     Plus,
