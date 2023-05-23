@@ -1,24 +1,104 @@
 mod builder;
 
+use std::cell::RefCell;
+
 use parser::{
     ast::{self, Atom, DeclAttr, Expr, ExternalDecl, Stmt, TranslationUnit, TypeSpecifier},
     Span, Symbol,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use self::builder::FuncBuilder;
 use crate::{
-    ir::{BinKind, ConstValue, Func, Ir, Layout, Operand, Register, TyLayout},
-    ty::Ty,
+    ir::{BinKind, Branch, ConstValue, Func, Ir, Layout, Operand, Register, TyLayout},
+    ty::{Ty, TyKind},
     Error,
 };
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
-struct LoweringCx {}
+#[derive(Debug)]
+struct LoweringCx<'cx> {
+    tys: RefCell<FxHashSet<&'cx TyKind<'cx>>>,
+    layouts: RefCell<FxHashSet<&'cx Layout>>,
+    arena: &'cx bumpalo::Bump,
+}
 
-pub fn lower_translation_unit(ast: &TranslationUnit) -> Result<Ir, Error> {
-    let mut lcx = LoweringCx {};
+impl<'cx> LoweringCx<'cx> {
+    fn lower_ty(&self, ty: &TypeSpecifier) -> Ty<'cx> {
+        let kind = match ty {
+            TypeSpecifier::Void => TyKind::Void,
+            TypeSpecifier::Char => TyKind::Char,
+            TypeSpecifier::SChar => TyKind::SChar,
+            TypeSpecifier::UChar => TyKind::UChar,
+            TypeSpecifier::Integer(int) => TyKind::Integer(*int),
+            TypeSpecifier::Float => TyKind::Float,
+            TypeSpecifier::Double => TyKind::Double,
+            TypeSpecifier::LongDouble => TyKind::LongDouble,
+            TypeSpecifier::Bool => TyKind::Bool,
+        };
+        self.intern_ty(kind)
+    }
+
+    fn intern_ty(&self, kind: TyKind<'cx>) -> Ty<'cx> {
+        let opt_kind = self.tys.borrow().get(&kind).copied();
+        match opt_kind {
+            Some(ty) => Ty::new_unchecked(ty),
+            None => {
+                let kind = self.arena.alloc(kind);
+                self.tys.borrow_mut().insert(kind);
+                Ty::new_unchecked(kind)
+            }
+        }
+    }
+
+    fn intern_layout(&self, layout: Layout) -> &'cx Layout {
+        let opt_layout = self.layouts.borrow().get(&layout).copied();
+        match opt_layout {
+            Some(layout) => layout,
+            None => {
+                let layout = self.arena.alloc(layout);
+                self.layouts.borrow_mut().insert(layout);
+                layout
+            }
+        }
+    }
+
+    fn layout_of(&self, ty: Ty<'cx>) -> TyLayout<'cx> {
+        let layout = match *ty {
+            TyKind::Void => Layout::size_align(0, 1),
+            TyKind::Char => Layout::size_align(1, 1),
+            TyKind::SChar => Layout::size_align(1, 1),
+            TyKind::UChar => Layout::size_align(1, 1),
+            TyKind::Integer(int) => match int.kind {
+                parser::ast::IntTyKind::Short => Layout::size_align(2, 2),
+                parser::ast::IntTyKind::Int => Layout::size_align(4, 4),
+                parser::ast::IntTyKind::Long => Layout::size_align(8, 8),
+                parser::ast::IntTyKind::LongLong => Layout::size_align(8, 8),
+            },
+            TyKind::Float => Layout::size_align(4, 4),
+            TyKind::Double => Layout::size_align(8, 8),
+            TyKind::LongDouble => Layout::size_align(8, 8),
+            TyKind::Bool => Layout::size_align(1, 1),
+            TyKind::Struct(_) => todo!("layout_of struct"),
+            TyKind::Union(_) => todo!("layout_of union"),
+            TyKind::Enum(_) => todo!("layout_of enum"),
+            TyKind::Ptr(_) => Layout::size_align(8, 8),
+        };
+        let layout = self.intern_layout(layout);
+        TyLayout { ty, layout }
+    }
+}
+
+pub fn lower_translation_unit<'cx>(
+    arena: &'cx bumpalo::Bump,
+    ast: &TranslationUnit,
+) -> Result<Ir<'cx>, Error> {
+    let mut lcx = LoweringCx {
+        tys: RefCell::default(),
+        layouts: RefCell::default(),
+        arena,
+    };
 
     for (decl, _) in ast {
         match decl {
@@ -26,7 +106,7 @@ pub fn lower_translation_unit(ast: &TranslationUnit) -> Result<Ir, Error> {
             ExternalDecl::FunctionDef(def) => {
                 let decl = def.decl.uwnrap_normal();
                 let body = &def.body;
-                let ret_ty = lower_ty(&decl.decl_spec.ty);
+                let ret_ty = lcx.lower_ty(&decl.decl_spec.ty);
                 lower_body(
                     &mut lcx,
                     body,
@@ -38,17 +118,18 @@ pub fn lower_translation_unit(ast: &TranslationUnit) -> Result<Ir, Error> {
         }
     }
 
-    todo!()
+    todo!("building is not really")
 }
 
 #[derive(Debug)]
-struct FnLoweringCtxt {
-    scopes: Vec<FxHashMap<Symbol, VariableInfo>>,
-    build: FuncBuilder,
+struct FnLoweringCtxt<'a, 'cx> {
+    scopes: Vec<FxHashMap<Symbol, VariableInfo<'cx>>>,
+    build: FuncBuilder<'a, 'cx>,
+    lcx: &'a LoweringCx<'cx>,
 }
 
-impl FnLoweringCtxt {
-    fn resolve_ident(&self, ident: Symbol) -> Option<&VariableInfo> {
+impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
+    fn resolve_ident(&self, ident: Symbol) -> Option<&VariableInfo<'cx>> {
         self.scopes.iter().rev().find_map(|s| s.get(&ident))
     }
 
@@ -63,11 +144,11 @@ impl FnLoweringCtxt {
         match stmt {
             Stmt::Decl(decl) => {
                 let decl = decl.uwnrap_normal();
-                let ty = lower_ty(&decl.decl_spec.ty);
+                let ty = self.lcx.lower_ty(&decl.decl_spec.ty);
                 let decl_attr = decl.decl_spec.attrs;
 
                 for (var, def_span) in &decl.init_declarators {
-                    let tyl = layout_of(ty.clone());
+                    let tyl = self.lcx.layout_of(ty.clone());
                     let (name, _) = var.declarator.decl.name();
                     let ptr_to = self.build.alloca(&tyl.layout, Some(name), stmt_span);
 
@@ -75,18 +156,50 @@ impl FnLoweringCtxt {
                         def_span: *def_span,
                         ptr_to,
                         decl_attr,
-                        tyl,
+                        tyl: tyl.clone(),
                     };
                     self.scopes.last_mut().unwrap().insert(name, variable_info);
+                    if let Some((init, init_span)) = &var.init {
+                        let init = self.lower_expr(init, *init_span)?;
+                        self.build.store(ptr_to, init, tyl.layout, *init_span);
+                    }
                 }
             }
             Stmt::Labeled { .. } => todo!("labels are not implemented"),
             Stmt::Compound(_) => todo!("blocks are not implemented"),
             Stmt::If {
                 cond,
-                then,
+                then: then_body,
                 otherwise,
-            } => todo!(),
+            } => {
+                let cond = self.lower_expr(&cond.0, cond.1)?;
+                let pred = self.build.current_bb;
+                let then = self.build.new_block();
+                let els = otherwise
+                    .as_deref()
+                    .map(|oth| (oth, self.build.new_block()));
+                let cont = self.build.new_block();
+
+                self.build.current_bb = then;
+                self.lower_body(&then_body)?;
+                self.build.cur_bb_mut().term = Branch::Goto(cont);
+
+                let false_branch = match els {
+                    Some((otherwise, els)) => {
+                        self.build.current_bb = els;
+                        self.lower_body(&otherwise)?;
+                        self.build.cur_bb_mut().term = Branch::Goto(cont);
+                        els
+                    }
+                    None => cont,
+                };
+                self.build.bb_mut(pred).term = Branch::Switch {
+                    cond,
+                    yes: then,
+                    no: false_branch,
+                };
+                self.build.current_bb = cont;
+            }
             Stmt::Switch => todo!(),
             Stmt::While { cond, body } => todo!(),
             Stmt::For {
@@ -160,7 +273,13 @@ impl FnLoweringCtxt {
                     ast::BinaryOp::Assign(_) => todo!("no assign"),
                 };
 
-                let reg = self.build.binary(kind, lhs, rhs, span, layout_of(Ty::Void));
+                let reg = self.build.binary(
+                    kind,
+                    lhs,
+                    rhs,
+                    span,
+                    self.lcx.layout_of(self.lcx.intern_ty(TyKind::Void)),
+                );
 
                 Ok(Operand::Reg(reg))
             }
@@ -173,7 +292,12 @@ impl FnLoweringCtxt {
                             .map(|(arg, sp)| self.lower_expr(arg, *sp))
                             .collect::<Result<_, _>>()?;
 
-                        let reg = self.build.call(layout_of(Ty::Void), lhs, args, span);
+                        let reg = self.build.call(
+                            self.lcx.layout_of(self.lcx.intern_ty(TyKind::Void)),
+                            lhs,
+                            args,
+                            span,
+                        );
                         Ok(Operand::Reg(reg))
                     }
                     ast::PostfixOp::Member(_) => todo!("member expr"),
@@ -189,65 +313,28 @@ impl FnLoweringCtxt {
 }
 
 #[derive(Debug)]
-struct VariableInfo {
+struct VariableInfo<'cx> {
     def_span: Span,
-    tyl: TyLayout,
+    tyl: TyLayout<'cx>,
     ptr_to: Register,
     decl_attr: DeclAttr,
 }
 
-fn lower_body(
+fn lower_body<'cx>(
     // may be used later
-    _lcx: &mut LoweringCx,
+    lcx: &LoweringCx<'cx>,
     body: &[(Stmt, Span)],
     def_span: Span,
     name: Symbol,
-    ret_ty: Ty,
-) -> Result<Func, Error> {
-    let mut cx: FnLoweringCtxt = FnLoweringCtxt {
+    ret_ty: Ty<'cx>,
+) -> Result<Func<'cx>, Error> {
+    let mut cx = FnLoweringCtxt {
         scopes: vec![FxHashMap::default()],
-        build: FuncBuilder::new(name, def_span, ret_ty),
+        build: FuncBuilder::new(name, def_span, ret_ty, lcx),
+        lcx,
     };
 
     cx.lower_body(body)?;
 
     Ok(cx.build.finish())
-}
-
-fn lower_ty(ty: &TypeSpecifier) -> Ty {
-    match ty {
-        TypeSpecifier::Void => Ty::Void,
-        TypeSpecifier::Char => Ty::Char,
-        TypeSpecifier::SChar => Ty::SChar,
-        TypeSpecifier::UChar => Ty::UChar,
-        TypeSpecifier::Integer(int) => Ty::Integer(*int),
-        TypeSpecifier::Float => Ty::Float,
-        TypeSpecifier::Double => Ty::Double,
-        TypeSpecifier::LongDouble => Ty::LongDouble,
-        TypeSpecifier::Bool => Ty::Bool,
-    }
-}
-
-fn layout_of(ty: Ty) -> TyLayout {
-    let layout = match ty {
-        Ty::Void => Layout::size_align(0, 1),
-        Ty::Char => Layout::size_align(1, 1),
-        Ty::SChar => Layout::size_align(1, 1),
-        Ty::UChar => Layout::size_align(1, 1),
-        Ty::Integer(int) => match int.kind {
-            parser::ast::IntTyKind::Short => Layout::size_align(2, 2),
-            parser::ast::IntTyKind::Int => Layout::size_align(4, 4),
-            parser::ast::IntTyKind::Long => Layout::size_align(8, 8),
-            parser::ast::IntTyKind::LongLong => Layout::size_align(8, 8),
-        },
-        Ty::Float => Layout::size_align(4, 4),
-        Ty::Double => Layout::size_align(8, 8),
-        Ty::LongDouble => Layout::size_align(8, 8),
-        Ty::Bool => Layout::size_align(1, 1),
-        Ty::Struct(_) => todo!("layout_of struct"),
-        Ty::Union(_) => todo!("layout_of union"),
-        Ty::Enum(_) => todo!("layout_of enum"),
-        Ty::Ptr(_) => Layout::size_align(8, 8),
-    };
-    TyLayout { ty, layout }
 }

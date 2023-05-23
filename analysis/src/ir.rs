@@ -33,6 +33,8 @@
 
 mod pretty;
 
+use std::fmt::{Debug, Display};
+
 use parser::{Span, Symbol};
 pub use pretty::{func_to_string, ir_to_string};
 use rustc_hash::FxHashMap;
@@ -43,29 +45,32 @@ use crate::ty::Ty;
 pub struct DefId(u32);
 
 #[derive(Debug, Clone)]
-pub struct TyLayout {
-    pub ty: Ty,
-    pub layout: Layout,
+pub struct TyLayout<'cx> {
+    pub ty: Ty<'cx>,
+    pub layout: &'cx Layout,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Layout {
     pub size: u64,
     pub align: u64,
 }
 
-pub struct Ir {
-    pub funcs: FxHashMap<DefId, Func>,
+pub struct Ir<'cx> {
+    pub funcs: FxHashMap<DefId, Func<'cx>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Func {
-    pub regs: Vec<RegisterData>,
+pub struct Func<'cx> {
+    pub regs: Vec<RegisterData<'cx>>,
     pub bbs: Vec<BasicBlock>,
     pub name: Symbol,
     pub def_span: Span,
-    pub ret_ty: Ty,
+    pub ret_ty: Ty<'cx>,
 }
+
+#[derive(Clone, Copy)]
+pub struct BbIdx(pub u32);
 
 #[derive(Debug, Clone)]
 pub struct BasicBlock {
@@ -74,8 +79,8 @@ pub struct BasicBlock {
 }
 
 #[derive(Debug, Clone)]
-pub struct RegisterData {
-    pub tyl: TyLayout,
+pub struct RegisterData<'cx> {
+    pub tyl: TyLayout<'cx>,
     pub name: Option<Symbol>,
 }
 
@@ -133,8 +138,12 @@ pub enum Operand {
 
 #[derive(Debug, Clone)]
 pub enum Branch {
-    Goto(u32),
-    Switch { cond: Operand, yes: u32, no: u32 },
+    Goto(BbIdx),
+    Switch {
+        cond: Operand,
+        yes: BbIdx,
+        no: BbIdx,
+    },
     Ret(Operand),
 }
 
@@ -157,6 +166,33 @@ pub enum BinKind {
 pub enum ConstValue {
     Void,
     Int(u128),
+}
+
+impl Func<'_> {
+    pub fn bb_mut(&mut self, i: BbIdx) -> &mut BasicBlock {
+        &mut self.bbs[i.as_usize()]
+    }
+}
+
+impl BbIdx {
+    pub fn from_usize(n: usize) -> Self {
+        Self(n.try_into().unwrap())
+    }
+    pub fn as_usize(self) -> usize {
+        self.0 as _
+    }
+}
+
+impl Debug for BbIdx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "bb{}", self.0)
+    }
+}
+
+impl Display for BbIdx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "bb{}", self.0)
+    }
 }
 
 impl Layout {

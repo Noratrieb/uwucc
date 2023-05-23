@@ -1,45 +1,50 @@
 use parser::{Span, Symbol};
 
-use super::layout_of;
+use super::LoweringCx;
 use crate::{
     ir::{
-        self, BasicBlock, BinKind, Branch, ConstValue, Func, Layout, Operand, Register,
+        self, BasicBlock, BbIdx, BinKind, Branch, ConstValue, Func, Layout, Operand, Register,
         RegisterData, Statement, StatementKind, TyLayout,
     },
-    ty::Ty,
+    ty::{Ty, TyKind},
 };
 
 #[derive(Debug)]
-pub struct FuncBuilder {
-    pub ir: Func,
-    current_bb: u32,
+pub(super) struct FuncBuilder<'a, 'cx> {
+    pub lcx: &'a LoweringCx<'cx>,
+    pub ir: Func<'cx>,
+    pub current_bb: BbIdx,
 }
 
-impl FuncBuilder {
-    pub fn new(name: Symbol, def_span: Span, ret_ty: Ty) -> Self {
+impl<'a, 'cx> FuncBuilder<'a, 'cx> {
+    pub fn new(name: Symbol, def_span: Span, ret_ty: Ty<'cx>, lcx: &'a LoweringCx<'cx>) -> Self {
         Self {
             ir: Func {
                 regs: Vec::new(),
                 bbs: vec![BasicBlock {
                     statements: Vec::new(),
-                    term: Branch::Goto(0),
+                    term: Branch::Goto(BbIdx(0)),
                 }],
                 name,
                 def_span,
                 ret_ty,
             },
-            current_bb: 0,
+            current_bb: BbIdx(0),
+            lcx,
         }
     }
 
-    pub fn new_reg(&mut self, name: Option<Symbol>, tyl: TyLayout) -> Register {
+    pub fn new_reg(&mut self, name: Option<Symbol>, tyl: TyLayout<'cx>) -> Register {
         let reg = Register(self.ir.regs.len().try_into().unwrap());
         self.ir.regs.push(RegisterData { name, tyl });
         reg
     }
 
     pub fn alloca(&mut self, layout: &Layout, name: Option<Symbol>, span: Span) -> Register {
-        let reg = self.new_reg(name, layout_of(Ty::Ptr(Box::new(Ty::Void))));
+        let void_ptr = self
+            .lcx
+            .intern_ty(TyKind::Ptr(self.lcx.intern_ty(TyKind::Void)));
+        let reg = self.new_reg(name, self.lcx.layout_of(void_ptr));
         let stmt = Statement {
             span,
             kind: StatementKind::Alloca {
@@ -48,7 +53,7 @@ impl FuncBuilder {
                 align: Operand::Const(ConstValue::u64(layout.align)),
             },
         };
-        self.bb_mut().statements.push(stmt);
+        self.cur_bb_mut().statements.push(stmt);
         reg
     }
 
@@ -58,7 +63,7 @@ impl FuncBuilder {
         lhs: Operand,
         rhs: Operand,
         span: Span,
-        result_tyl: TyLayout,
+        result_tyl: TyLayout<'cx>,
     ) -> Register {
         let reg = self.new_reg(None, result_tyl);
         let stmt = StatementKind::BinOp {
@@ -67,13 +72,13 @@ impl FuncBuilder {
             rhs,
             result: reg,
         };
-        self.bb_mut()
+        self.cur_bb_mut()
             .statements
             .push(Statement { span, kind: stmt });
         reg
     }
 
-    pub fn load(&mut self, tyl: TyLayout, ptr_reg: Register, span: Span) -> Register {
+    pub fn load(&mut self, tyl: TyLayout<'cx>, ptr_reg: Register, span: Span) -> Register {
         let reg = self.new_reg(None, tyl.clone());
         let stmt = StatementKind::Load {
             result: reg,
@@ -81,27 +86,27 @@ impl FuncBuilder {
             size: Operand::const_u64(tyl.layout.size),
             align: Operand::const_u64(tyl.layout.align),
         };
-        self.bb_mut()
+        self.cur_bb_mut()
             .statements
             .push(Statement { span, kind: stmt });
         reg
     }
 
-    pub fn store(&mut self, ptr_reg: Register, rhs: Operand, layout: Layout, span: Span) {
+    pub fn store(&mut self, ptr_reg: Register, rhs: Operand, layout: &Layout, span: Span) {
         let stmt = StatementKind::Store {
             ptr_reg,
             value: rhs,
             size: Operand::const_u64(layout.size),
             align: Operand::const_u64(layout.align),
         };
-        self.bb_mut()
+        self.cur_bb_mut()
             .statements
             .push(Statement { span, kind: stmt });
     }
 
     pub fn call(
         &mut self,
-        ret_tyl: TyLayout,
+        ret_tyl: TyLayout<'cx>,
         func: Operand,
         args: Vec<Operand>,
         span: Span,
@@ -112,18 +117,30 @@ impl FuncBuilder {
             func,
             args,
         };
-        self.bb_mut()
+        self.cur_bb_mut()
             .statements
             .push(Statement { span, kind: stmt });
         reg
     }
 
-    pub fn bb_mut(&mut self) -> &mut BasicBlock {
-        &mut self.ir.bbs[self.current_bb as usize]
+    pub fn bb_mut(&mut self, bb: BbIdx) -> &mut BasicBlock {
+        self.ir.bb_mut(bb)
     }
 
-    pub fn finish(mut self) -> Func {
-        self.bb_mut().term = Branch::Ret(Operand::Const(ConstValue::Void));
+    pub fn cur_bb_mut(&mut self) -> &mut BasicBlock {
+        &mut self.ir.bbs[self.current_bb.as_usize()]
+    }
+
+    pub fn new_block(&mut self) -> BbIdx {
+        self.ir.bbs.push(BasicBlock {
+            statements: vec![],
+            term: Branch::Goto(BbIdx(0)),
+        });
+        BbIdx::from_usize(self.ir.bbs.len() - 1)
+    }
+
+    pub fn finish(mut self) -> Func<'cx> {
+        self.cur_bb_mut().term = Branch::Ret(Operand::Const(ConstValue::Void));
 
         println!("{}", ir::func_to_string(&self.ir));
 

@@ -1,15 +1,15 @@
 use std::fmt::{Display, Formatter, Result, Write};
 
-use super::{BinKind, Branch, ConstValue, Func, Ir, Operand, StatementKind};
+use super::{BinKind, Branch, ConstValue, Func, Ir, Operand, StatementKind, BbIdx};
 use crate::ir::Register;
 
-pub fn ir_to_string(ir: &Ir) -> String {
+pub fn ir_to_string(ir: &Ir<'_>) -> String {
     let mut buf = String::new();
     PrettyPrinter { out: &mut buf }.ir(ir).unwrap();
     buf
 }
 
-pub fn func_to_string(func: &Func) -> String {
+pub fn func_to_string(func: &Func<'_>) -> String {
     let mut buf = String::new();
     PrettyPrinter { out: &mut buf }.func(func).unwrap();
     buf
@@ -20,14 +20,14 @@ pub struct PrettyPrinter<W> {
 }
 
 impl<W: Write> PrettyPrinter<W> {
-    pub fn ir(&mut self, ir: &Ir) -> Result {
+    pub fn ir(&mut self, ir: &Ir<'_>) -> Result {
         for (_, func) in &ir.funcs {
             self.func(func)?;
         }
         Ok(())
     }
 
-    pub fn func(&mut self, func: &Func) -> Result {
+    pub fn func(&mut self, func: &Func<'_>) -> Result {
         writeln!(self.out, "def {}() {{", func.name)?;
 
         let print_reg = |reg: Register| {
@@ -48,7 +48,7 @@ impl<W: Write> PrettyPrinter<W> {
             if i > 0 {
                 writeln!(self.out)?;
             }
-            writeln!(self.out, "  {i}:")?;
+            writeln!(self.out, "  {}:", BbIdx::from_usize(i))?;
 
             for stmt in &bb.statements {
                 match stmt.kind {
@@ -144,9 +144,11 @@ impl<W: Write> PrettyPrinter<W> {
 
             match bb.term {
                 Branch::Goto(bbn) => writeln!(self.out, "    goto {}", bbn)?,
-                Branch::Switch { cond, yes, no } => {
-                    writeln!(self.out, "    switch {}, {yes}, {no}", print_op(cond))?
-                }
+                Branch::Switch { cond, yes, no } => writeln!(
+                    self.out,
+                    "    switch {}, then {yes}, else {no}",
+                    print_op(cond)
+                )?,
                 Branch::Ret(op) => writeln!(self.out, "    ret {}", print_op(op))?,
             }
         }

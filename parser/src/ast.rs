@@ -142,7 +142,7 @@ pub enum Stmt {
 // --- Types and decls and garbage whatever
 //
 
-#[derive(Debug, DebugPls, Clone, Copy)]
+#[derive(Debug, DebugPls, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IntTySignedness {
     Signed,
     Unsigned,
@@ -155,7 +155,7 @@ impl Default for IntTySignedness {
     }
 }
 
-#[derive(Debug, DebugPls, Clone, Copy)]
+#[derive(Debug, DebugPls, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IntTyKind {
     Short,
     Int,
@@ -163,7 +163,7 @@ pub enum IntTyKind {
     LongLong,
 }
 
-#[derive(Debug, DebugPls, Clone, Copy)]
+#[derive(Debug, DebugPls, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct IntTy {
     pub sign: IntTySignedness,
     pub kind: IntTyKind,

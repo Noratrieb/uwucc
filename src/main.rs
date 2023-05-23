@@ -15,5 +15,7 @@ fn main() {
     printer.translation_unit(&ast).unwrap();
     println!("// END CODE    -------------------");
 
-    let _ = analysis::lower_translation_unit(&ast);
+    let arena = bumpalo::Bump::new();
+
+    let _ = analysis::lower_translation_unit(&arena, &ast);
 }

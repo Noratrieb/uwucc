@@ -574,6 +574,7 @@ name = "uwucc"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "bumpalo",
  "dbg-pls",
  "parser",
 ]
