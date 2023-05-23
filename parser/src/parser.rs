@@ -484,6 +484,16 @@ where
             return self.if_statement();
         }
 
+        if let Some((_, span)) = eat!(self, Tok::Kw(Kw::Return)) {
+            if let Some((_, semi_span)) = eat!(self, Tok::Punct(P::Semicolon)) {
+                return Ok((Stmt::Return(None), span.extend(semi_span)));
+            } else {
+                let expr = self.expr()?;
+                let semi_span = expect!(self, Tok::Punct(P::Semicolon));
+                return Ok((Stmt::Return(Some(expr)), span.extend(semi_span)));
+            }
+        }
+
         // it must be an expression stmt
         let (expr, span) = self.expr()?;
         expect!(self, Tok::Punct(P::Semicolon));

@@ -1,16 +1,21 @@
 mod builder;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use parser::{
-    ast::{self, Atom, DeclAttr, Expr, ExternalDecl, Stmt, TranslationUnit, TypeSpecifier},
+    ast::{
+        self, Atom, DeclAttr, Expr, ExprBinary, ExternalDecl, Stmt, TranslationUnit, TypeSpecifier,
+    },
     Span, Symbol,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use self::builder::FuncBuilder;
 use crate::{
-    ir::{BinKind, Branch, ConstValue, Func, Ir, Layout, Operand, Register, TyLayout},
+    ir::{
+        self, BbIdx, BinKind, Branch, ConstValue, DefId, Func, Ir, Layout, Operand, Register,
+        TyLayout,
+    },
     ty::{Ty, TyKind},
     Error,
 };
@@ -22,9 +27,15 @@ struct LoweringCx<'cx> {
     tys: RefCell<FxHashSet<&'cx TyKind<'cx>>>,
     layouts: RefCell<FxHashSet<&'cx Layout>>,
     arena: &'cx bumpalo::Bump,
+    next_def_id: Cell<DefId>,
 }
 
 impl<'cx> LoweringCx<'cx> {
+    fn next_def_id(&self) -> DefId {
+        let def_id = self.next_def_id.get();
+        self.next_def_id.set(DefId(def_id.0 + 1));
+        def_id
+    }
     fn lower_ty(&self, ty: &TypeSpecifier) -> Ty<'cx> {
         let kind = match ty {
             TypeSpecifier::Void => TyKind::Void,
@@ -94,10 +105,15 @@ pub fn lower_translation_unit<'cx>(
     arena: &'cx bumpalo::Bump,
     ast: &TranslationUnit,
 ) -> Result<Ir<'cx>, Error> {
-    let mut lcx = LoweringCx {
+    let lcx = LoweringCx {
         tys: RefCell::default(),
         layouts: RefCell::default(),
         arena,
+        next_def_id: Cell::new(DefId(0)),
+    };
+
+    let mut ir = Ir {
+        funcs: FxHashMap::default(),
     };
 
     for (decl, _) in ast {
@@ -107,18 +123,21 @@ pub fn lower_translation_unit<'cx>(
                 let decl = def.decl.uwnrap_normal();
                 let body = &def.body;
                 let ret_ty = lcx.lower_ty(&decl.decl_spec.ty);
-                lower_body(
-                    &mut lcx,
+                let func = lower_body(
+                    &lcx,
                     body,
                     decl.init_declarators[0].1,
                     decl.init_declarators[0].0.declarator.decl.name().0,
                     ret_ty,
                 )?;
+                ir.funcs.insert(lcx.next_def_id(), func);
             }
         }
     }
 
-    todo!("building is not really")
+    ir::validate(&ir);
+
+    Ok(ir)
 }
 
 #[derive(Debug)]
@@ -133,10 +152,12 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
         self.scopes.iter().rev().find_map(|s| s.get(&ident))
     }
 
-    fn lower_body(&mut self, body: &[(Stmt, Span)]) -> Result<()> {
+    fn lower_block(&mut self, body: &[(Stmt, Span)]) -> Result<()> {
+        self.scopes.push(Default::default());
         for (stmt, stmt_span) in body {
             self.lower_stmt(stmt, *stmt_span)?;
         }
+        self.scopes.pop();
         Ok(())
     }
 
@@ -148,9 +169,9 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 let decl_attr = decl.decl_spec.attrs;
 
                 for (var, def_span) in &decl.init_declarators {
-                    let tyl = self.lcx.layout_of(ty.clone());
-                    let (name, _) = var.declarator.decl.name();
-                    let ptr_to = self.build.alloca(&tyl.layout, Some(name), stmt_span);
+                    let tyl = self.lcx.layout_of(ty);
+                    let (name, name_span) = var.declarator.decl.name();
+                    let ptr_to = self.build.alloca(tyl.layout, Some(name), stmt_span);
 
                     let variable_info = VariableInfo {
                         def_span: *def_span,
@@ -158,7 +179,14 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                         decl_attr,
                         tyl: tyl.clone(),
                     };
-                    self.scopes.last_mut().unwrap().insert(name, variable_info);
+                    let predeclared = self.scopes.last_mut().unwrap().insert(name, variable_info);
+                    if let Some(predeclared) = predeclared {
+                        return Err(Error::new(
+                            format!("variable {name} has already been declared"),
+                            name_span,
+                        )
+                        .note_spanned("already declared here", predeclared.def_span));
+                    }
                     if let Some((init, init_span)) = &var.init {
                         let init = self.lower_expr(init, *init_span)?;
                         self.build.store(ptr_to, init, tyl.layout, *init_span);
@@ -166,7 +194,9 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 }
             }
             Stmt::Labeled { .. } => todo!("labels are not implemented"),
-            Stmt::Compound(_) => todo!("blocks are not implemented"),
+            Stmt::Compound(block) => {
+                self.lower_block(block)?;
+            }
             Stmt::If {
                 cond,
                 then: then_body,
@@ -181,13 +211,13 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 let cont = self.build.new_block();
 
                 self.build.current_bb = then;
-                self.lower_body(&then_body)?;
+                self.lower_block(then_body)?;
                 self.build.cur_bb_mut().term = Branch::Goto(cont);
 
                 let false_branch = match els {
                     Some((otherwise, els)) => {
                         self.build.current_bb = els;
-                        self.lower_body(&otherwise)?;
+                        self.lower_block(otherwise)?;
                         self.build.cur_bb_mut().term = Branch::Goto(cont);
                         els
                     }
@@ -212,7 +242,13 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
             Stmt::Goto(_) => todo!(),
             Stmt::Continue => todo!(),
             Stmt::Break => todo!(),
-            Stmt::Return(_) => todo!(),
+            Stmt::Return(expr) => {
+                let ret = match expr {
+                    Some(expr) => self.lower_expr(&expr.0, expr.1)?,
+                    None => Operand::Const(ConstValue::Void),
+                };
+                self.build.cur_bb_mut().term = Branch::Ret(ret);
+            }
             Stmt::Expr(ast::Expr::Binary(ast::ExprBinary {
                 op: ast::BinaryOp::Assign(assign),
                 lhs,
@@ -243,9 +279,43 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
             ast::Expr::Atom(Atom::Char(c)) => Ok(Operand::Const(ConstValue::Int((*c).into()))),
             ast::Expr::Atom(Atom::Int(i)) => Ok(Operand::Const(ConstValue::Int(*i as _))),
             ast::Expr::Atom(Atom::Float(_)) => todo!("no floats"),
-            ast::Expr::Atom(Atom::Ident(_)) => todo!("no idents"),
+            ast::Expr::Atom(Atom::Ident((ident, ident_span))) => {
+                let Some(var) = self.resolve_ident(*ident) else {
+                    return Err(Error::new(format!("cannot find variable {ident}"), *ident_span));
+                };
+                let op = self.build.load(var.tyl, var.ptr_to, span);
+                Ok(Operand::Reg(op))
+            }
             ast::Expr::Atom(Atom::String(_)) => todo!("no string literals"),
-            ast::Expr::Unary(_) => todo!("no unaries"),
+            ast::Expr::Unary(unary) => {
+                let _rhs = self.lower_expr(&unary.rhs.0, unary.rhs.1)?;
+                match unary.op {
+                    ast::UnaryOp::AddrOf => todo!("addr of"),
+                    ast::UnaryOp::Deref => todo!("deref?"),
+                    ast::UnaryOp::Plus => todo!("unary plus lol"),
+                    ast::UnaryOp::Minus => todo!("unary minus!"),
+                    ast::UnaryOp::Tilde => todo!("tilde"),
+                    ast::UnaryOp::Bang => todo!("bang bang bang"),
+                }
+            }
+            ast::Expr::Binary(ExprBinary {
+                lhs,
+                rhs,
+                op: ast::BinaryOp::Assign(assign),
+            }) => {
+                if assign.is_some() {
+                    todo!("assign operation");
+                }
+                let rhs = self.lower_expr(&rhs.0, rhs.1)?;
+                let (Expr::Atom(ast::Atom::Ident((ident, ident_span))), _) = **lhs else {
+                    todo!("complex assignments")
+                };
+                let Some(var) = self.resolve_ident(ident) else {
+                    return Err(Error::new(format!("cannot find variable {ident}"), ident_span));
+                };
+                self.build.store(var.ptr_to, rhs, var.tyl.layout, span);
+                Ok(rhs)
+            }
             ast::Expr::Binary(binary) => {
                 let lhs = self.lower_expr(&binary.lhs.0, binary.lhs.1)?;
                 let rhs = self.lower_expr(&binary.rhs.0, binary.rhs.1)?;
@@ -255,11 +325,11 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     ast::BinaryOp::Arith(ast::ArithOpKind::Mod) => BinKind::Mod,
                     ast::BinaryOp::Arith(ast::ArithOpKind::Add) => BinKind::Add,
                     ast::BinaryOp::Arith(ast::ArithOpKind::Sub) => BinKind::Sub,
-                    ast::BinaryOp::Arith(ast::ArithOpKind::Shl) => todo!("shl"),
-                    ast::BinaryOp::Arith(ast::ArithOpKind::Shr) => todo!("shr"),
-                    ast::BinaryOp::Arith(ast::ArithOpKind::BitAnd) => todo!("&"),
-                    ast::BinaryOp::Arith(ast::ArithOpKind::BitXor) => todo!("^"),
-                    ast::BinaryOp::Arith(ast::ArithOpKind::BitOr) => todo!("|"),
+                    ast::BinaryOp::Arith(ast::ArithOpKind::Shl) => BinKind::Shl,
+                    ast::BinaryOp::Arith(ast::ArithOpKind::Shr) => BinKind::Shr,
+                    ast::BinaryOp::Arith(ast::ArithOpKind::BitAnd) => BinKind::BitAnd,
+                    ast::BinaryOp::Arith(ast::ArithOpKind::BitXor) => BinKind::BitXor,
+                    ast::BinaryOp::Arith(ast::ArithOpKind::BitOr) => BinKind::BitOr,
                     ast::BinaryOp::LogicalAnd => todo!("no logical or"),
                     ast::BinaryOp::LogicalOr => todo!("no logical and"),
                     ast::BinaryOp::Comparison(ast::ComparisonKind::Lt) => BinKind::Lt,
@@ -268,9 +338,12 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                     ast::BinaryOp::Comparison(ast::ComparisonKind::GtEq) => BinKind::Geq,
                     ast::BinaryOp::Comparison(ast::ComparisonKind::Eq) => BinKind::Eq,
                     ast::BinaryOp::Comparison(ast::ComparisonKind::Neq) => BinKind::Neq,
-                    ast::BinaryOp::Comma => todo!("no comma"),
+                    ast::BinaryOp::Comma => {
+                        // Discard the lhs, evaluate to the rhs.
+                        return Ok(rhs);
+                    }
                     ast::BinaryOp::Index => todo!("no index"),
-                    ast::BinaryOp::Assign(_) => todo!("no assign"),
+                    ast::BinaryOp::Assign(_) => unreachable!("assign handled above"),
                 };
 
                 let reg = self.build.binary(
@@ -329,12 +402,16 @@ fn lower_body<'cx>(
     ret_ty: Ty<'cx>,
 ) -> Result<Func<'cx>, Error> {
     let mut cx = FnLoweringCtxt {
-        scopes: vec![FxHashMap::default()],
+        scopes: vec![],
         build: FuncBuilder::new(name, def_span, ret_ty, lcx),
         lcx,
     };
 
-    cx.lower_body(body)?;
+    cx.lower_block(body)?;
+
+    if let Branch::Goto(BbIdx(u32::MAX)) = cx.build.cur_bb_mut().term {
+        cx.build.cur_bb_mut().term = Branch::Ret(Operand::Const(ConstValue::Void));
+    }
 
     Ok(cx.build.finish())
 }

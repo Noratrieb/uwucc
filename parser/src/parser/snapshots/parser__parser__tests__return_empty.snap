@@ -1,0 +1,36 @@
+---
+source: parser/src/parser/tests.rs
+expression: "(parsed_pretty, pretty_printed_source)"
+---
+(
+    Ok([
+        (
+            FunctionDef(FunctionDef {
+                decl: Normal(NormalDecl {
+                    decl_spec: DeclSpec {
+                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        attrs: "(empty)",
+                    },
+                    init_declarators: [
+                        (
+                            InitDecl {
+                                declarator: Declarator {
+                                    decl: WithParams {
+                                        ident: (main, 5..9),
+                                        params: [],
+                                    },
+                                    pointer: false,
+                                },
+                                init: None,
+                            },
+                            5..9,
+                        ),
+                    ],
+                }),
+                body: [(Return(None), 18..25)],
+            }),
+            1..27,
+        ),
+    ]),
+    "int main() {\n    return\n}\n",
+)

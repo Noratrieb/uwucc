@@ -32,19 +32,21 @@
 //! ```
 
 mod pretty;
+mod validate;
 
 use std::fmt::{Debug, Display};
 
 use parser::{Span, Symbol};
 pub use pretty::{func_to_string, ir_to_string};
 use rustc_hash::FxHashMap;
+pub use validate::validate;
 
 use crate::ty::Ty;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct DefId(u32);
+pub struct DefId(pub u32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct TyLayout<'cx> {
     pub ty: Ty<'cx>,
     pub layout: &'cx Layout,
@@ -160,6 +162,11 @@ pub enum BinKind {
     Geq,
     Lt,
     Leq,
+    Shl,
+    Shr,
+    BitAnd,
+    BitOr,
+    BitXor,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -210,5 +217,11 @@ impl ConstValue {
 impl Operand {
     pub fn const_u64(int: u64) -> Self {
         Self::Const(ConstValue::u64(int))
+    }
+}
+
+impl Branch {
+    pub fn dummy() -> Self {
+        Branch::Goto(BbIdx(u32::MAX))
     }
 }

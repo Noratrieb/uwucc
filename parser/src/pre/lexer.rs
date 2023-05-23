@@ -298,7 +298,7 @@ impl CLexExt for u8 {
     }
 
     fn is_c_identifier_digit(&self) -> bool {
-        matches!(self, b'0'..=b'9')
+        self.is_ascii_digit()
     }
 
     fn is_c_whitespace(&self) -> bool {

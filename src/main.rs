@@ -17,5 +17,11 @@ fn main() {
 
     let arena = bumpalo::Bump::new();
 
-    let _ = analysis::lower_translation_unit(&arena, &ast);
+    let ir = analysis::lower_translation_unit(&arena, &ast);
+    match ir {
+        Ok(_) => {}
+        Err(err) => {
+            dbg!(err);
+        }
+    }
 }

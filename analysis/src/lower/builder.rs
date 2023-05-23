@@ -23,7 +23,7 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
                 regs: Vec::new(),
                 bbs: vec![BasicBlock {
                     statements: Vec::new(),
-                    term: Branch::Goto(BbIdx(0)),
+                    term: Branch::dummy(),
                 }],
                 name,
                 def_span,
@@ -134,14 +134,12 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
     pub fn new_block(&mut self) -> BbIdx {
         self.ir.bbs.push(BasicBlock {
             statements: vec![],
-            term: Branch::Goto(BbIdx(0)),
+            term: Branch::dummy(),
         });
         BbIdx::from_usize(self.ir.bbs.len() - 1)
     }
 
-    pub fn finish(mut self) -> Func<'cx> {
-        self.cur_bb_mut().term = Branch::Ret(Operand::Const(ConstValue::Void));
-
+    pub fn finish(self) -> Func<'cx> {
         println!("{}", ir::func_to_string(&self.ir));
 
         self.ir

@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result, Write};
 
-use super::{BinKind, Branch, ConstValue, Func, Ir, Operand, StatementKind, BbIdx};
+use super::{BbIdx, BinKind, Branch, ConstValue, Func, Ir, Operand, StatementKind};
 use crate::ir::Register;
 
 pub fn ir_to_string(ir: &Ir<'_>) -> String {
@@ -21,7 +21,7 @@ pub struct PrettyPrinter<W> {
 
 impl<W: Write> PrettyPrinter<W> {
     pub fn ir(&mut self, ir: &Ir<'_>) -> Result {
-        for (_, func) in &ir.funcs {
+        for func in ir.funcs.values() {
             self.func(func)?;
         }
         Ok(())
@@ -108,6 +108,11 @@ impl<W: Write> PrettyPrinter<W> {
                             BinKind::Geq => "geq",
                             BinKind::Lt => "gl",
                             BinKind::Leq => "leq",
+                            BinKind::Shl => "shl",
+                            BinKind::Shr => "shr",
+                            BinKind::BitAnd => "bitand",
+                            BinKind::BitOr => "bitor",
+                            BinKind::BitXor => "bitxor",
                         },
                         print_op(lhs),
                         print_op(rhs)

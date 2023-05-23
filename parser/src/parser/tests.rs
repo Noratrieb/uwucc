@@ -202,3 +202,25 @@ int main() {
     "#
     );
 }
+
+#[test]
+fn return_empty() {
+    parse_test!(
+        r#"
+int main() {
+    return;
+}
+    "#
+    );
+}
+
+#[test]
+fn return_expr() {
+    parse_test!(
+        r#"
+int main() {
+    return 0;
+}
+    "#
+    );
+}
