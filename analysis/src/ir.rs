@@ -104,7 +104,7 @@ pub struct RegisterData<'cx> {
     pub name: Option<Symbol>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Register(pub u32);
 
 #[derive(Debug, Clone)]
@@ -244,6 +244,14 @@ impl Layout {
 impl ConstValue {
     pub fn u64(int: u64) -> Self {
         Self::Int(int.into())
+    }
+
+    pub fn as_i32(self) -> i32 {
+        match self {
+            Self::StaticPtr(_) => panic!("StaticPtr cannot be converted to integer"),
+            Self::Void => panic!("Void cannot be converted to integer"),
+            Self::Int(int) => int.try_into().unwrap(),
+        }
     }
 }
 

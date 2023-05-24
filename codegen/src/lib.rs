@@ -10,7 +10,7 @@ use object::{
 
 type Result<T, E = analysis::Error> = std::result::Result<T, E>;
 
-pub fn generate<'cx>(lcx: &LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
+pub fn generate<'cx>(lcx: &'cx LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
     let mut obj = Object::new(
         object::BinaryFormat::Elf,
         object::Architecture::X86_64,
@@ -61,11 +61,11 @@ pub fn generate<'cx>(lcx: &LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
             "linking with `cc` failed"
         )));
     } else {
-        std::fs::remove_file("main.o").map_err(|err| {
-            analysis::Error::new_without_span(format!(
-                "failed to remove temporary file main.o: {err}"
-            ))
-        })?;
+        // std::fs::remove_file("main.o").map_err(|err| {
+        //     analysis::Error::new_without_span(format!(
+        //         "failed to remove temporary file main.o: {err}"
+        //     ))
+        // })?;
     }
 
     Ok(())

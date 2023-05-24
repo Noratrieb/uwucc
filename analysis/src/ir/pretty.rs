@@ -184,6 +184,8 @@ impl<W: Write> PrettyPrinter<W> {
             }
         }
 
+        writeln!(self.out, "}}")?;
+
         Ok(())
     }
 }
