@@ -21,11 +21,9 @@ use crate::{
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub fn lower_translation_unit<'cx>(
-    arena: &'cx bumpalo::Bump,
+    lcx: &mut LoweringCx<'cx>,
     ast: &ast::TranslationUnit,
 ) -> Result<Ir<'cx>, Error> {
-    let mut lcx = LoweringCx::new(arena);
-
     let mut ir = Ir {
         funcs: FxHashMap::default(),
     };

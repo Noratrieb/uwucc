@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "./parser", "./analysis", "./codegen_x86"]
+members = [".", "./parser", "./analysis", "./codegen"]
 
 [package]
 name = "uwucc"
@@ -11,5 +11,6 @@ edition = "2021"
 [dependencies]
 bumpalo = "3.10.0"
 analysis = { path = "./analysis" }
+codegen = { path = "./codegen" }
 parser = { path = "./parser" }
 dbg-pls = { version = "0.3.2", features = ["derive", "colors"] }

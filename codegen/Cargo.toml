@@ -1,0 +1,20 @@
+[package]
+name = "codegen"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+analysis = { path = "../analysis" }
+iced-x86 = { version = "1.18.0", default-features = false, features = [
+    "encoder",
+    "block_encoder",
+    "op_code_info",
+    "instr_info",
+    "nasm",          # for debugging output
+    "code_asm",
+    "std",
+] }
+object = { version = "0.31.1", features = ["write"] }
+parser = { path = "../parser" }

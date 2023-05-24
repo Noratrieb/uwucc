@@ -1,3 +1,5 @@
+use analysis::LoweringCx;
+
 fn main() {
     let input_file = std::env::args().nth(1).expect("first argument");
     let src = std::fs::read_to_string(&input_file).unwrap_or_else(|err| {
@@ -16,12 +18,15 @@ fn main() {
     println!("// END CODE    -------------------");
 
     let arena = bumpalo::Bump::new();
+    let mut lcx = LoweringCx::new(&arena);
 
-    let ir = analysis::lower_translation_unit(&arena, &ast);
-    match ir {
-        Ok(_) => {}
-        Err(err) => {
-            dbg!(err);
-        }
-    }
+    let ir = analysis::lower_translation_unit(&mut lcx, &ast).unwrap_or_else(|err| {
+        dbg!(err);
+        std::process::exit(1);
+    });
+
+    codegen::generate(&lcx, &ir).unwrap_or_else(|err| {
+        dbg!(err);
+        std::process::exit(1);
+    });
 }

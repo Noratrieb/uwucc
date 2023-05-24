@@ -2,17 +2,18 @@
 #![warn(rust_2018_idioms)]
 
 mod ctxt;
-mod ir;
+pub mod ir;
 mod lower;
-mod ty;
+pub mod ty;
 
+pub use ctxt::LoweringCx;
 pub use lower::lower_translation_unit;
 use parser::Span;
 
 #[derive(Debug)]
 pub struct Error {
     msg: String,
-    span: Span,
+    span: Option<Span>,
     notes: Vec<Note>,
 }
 
@@ -26,7 +27,15 @@ impl Error {
     pub fn new(msg: impl Into<String>, span: Span) -> Self {
         Self {
             msg: msg.into(),
-            span,
+            span: Some(span),
+            notes: Vec::new(),
+        }
+    }
+
+    pub fn new_without_span(msg: impl Into<String>) -> Self {
+        Self {
+            msg: msg.into(),
+            span: None,
             notes: Vec::new(),
         }
     }

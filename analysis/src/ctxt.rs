@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct LoweringCx<'cx> {
+pub struct LoweringCx<'cx> {
     tys: RefCell<FxHashSet<&'cx TyKind<'cx>>>,
     layouts: RefCell<FxHashSet<&'cx Layout>>,
     string_literals: RefCell<FxHashMap<&'cx [u8], DefId>>,
@@ -23,7 +23,7 @@ pub(crate) struct LoweringCx<'cx> {
 }
 
 impl<'cx> LoweringCx<'cx> {
-    pub(crate) fn new(arena: &'cx bumpalo::Bump) -> Self {
+    pub fn new(arena: &'cx bumpalo::Bump) -> Self {
         LoweringCx {
             tys: RefCell::default(),
             layouts: RefCell::default(),
