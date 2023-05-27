@@ -2,7 +2,7 @@ mod builder;
 mod typeck;
 
 use parser::{
-    ast::{self, ExprBinary, IntSign, IntTy, IntTyKind},
+    ast::{self, ExprBinary},
     Span, Symbol,
 };
 use rustc_hash::FxHashMap;
@@ -68,7 +68,9 @@ pub fn lower_translation_unit<'cx>(
         }
     }
 
-    ir::validate(&ir);
+    for func in ir.funcs.values() {
+        ir::validate(func);
+    }
 
     Ok(ir)
 }
@@ -77,21 +79,6 @@ struct FnLoweringCtxt<'a, 'cx> {
     scopes: Vec<FxHashMap<Symbol, VariableInfo<'cx>>>,
     build: FuncBuilder<'a, 'cx>,
     lcx: &'a LoweringCx<'cx>,
-    types: CommonTypes<'cx>,
-}
-
-struct CommonInt<'cx> {
-    signed: Ty<'cx>,
-    unsigned: Ty<'cx>,
-}
-
-struct CommonTypes<'cx> {
-    void: Ty<'cx>,
-    char: Ty<'cx>,
-    su_char: CommonInt<'cx>,
-    short: CommonInt<'cx>,
-    int: CommonInt<'cx>,
-    long: CommonInt<'cx>,
 }
 
 impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
@@ -250,11 +237,11 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
         let op_tyl = match expr {
             ast::Expr::Atom(ast::Atom::Char(c)) => (
                 Operand::Const(ConstValue::Int((*c).into())),
-                self.lcx.layout_of(self.types.char),
+                self.lcx.layout_of(self.lcx.types.char),
             ),
             ast::Expr::Atom(ast::Atom::Int(i)) => (
                 Operand::Const(ConstValue::Int(*i as _)),
-                self.lcx.layout_of(self.types.int.signed),
+                self.lcx.layout_of(self.lcx.types.int.signed),
             ),
             ast::Expr::Atom(ast::Atom::Float(_)) => todo!("no floats"),
             ast::Expr::Atom(ast::Atom::Ident((ident, ident_span))) => {
@@ -284,7 +271,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 let lit_def_id = self.lcx.intern_str_lit(string);
                 (
                     Operand::Const(ConstValue::StaticPtr(lit_def_id)),
-                    self.ty_layout(TyKind::Ptr(self.types.char)),
+                    self.ty_layout(TyKind::Ptr(self.lcx.types.char)),
                 )
             }
             ast::Expr::Unary(ast::ExprUnary {
@@ -467,7 +454,6 @@ fn lower_func<'cx>(
             params.len().try_into().unwrap(),
         ),
         lcx,
-        types: CommonTypes::new(lcx),
     };
 
     for param in params {
@@ -522,23 +508,4 @@ fn lower_func<'cx>(
     }
 
     Ok(cx.build.finish())
-}
-
-impl<'cx> CommonTypes<'cx> {
-    fn new(lcx: &LoweringCx<'cx>) -> Self {
-        let int = |sign, kind| lcx.intern_ty(TyKind::Int(IntTy(sign, kind)));
-        let int_pair = |kind| CommonInt {
-            signed: int(IntSign::Signed, kind),
-            unsigned: int(IntSign::Unsigned, kind),
-        };
-
-        Self {
-            void: lcx.intern_ty(TyKind::Void),
-            char: lcx.intern_ty(TyKind::Char),
-            su_char: int_pair(IntTyKind::Char),
-            short: int_pair(IntTyKind::Short),
-            int: int_pair(IntTyKind::Int),
-            long: int_pair(IntTyKind::Long),
-        }
-    }
 }

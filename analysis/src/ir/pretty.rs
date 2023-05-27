@@ -65,7 +65,7 @@ impl<W: Write> PrettyPrinter<W> {
 
             for stmt in &bb.statements {
                 match stmt.kind {
-                    StatementKind::Alloca { reg, size, align } => {
+                    StatementKind::Alloca { result: reg, size, align } => {
                         writeln!(
                             self.out,
                             "    {} = alloca, size={}, align={}",
@@ -145,13 +145,13 @@ impl<W: Write> PrettyPrinter<W> {
                     ),
                     StatementKind::PtrOffset {
                         result,
-                        reg,
+                        ptr: reg,
                         amount,
                     } => writeln!(
                         self.out,
                         "    {} = ptroffset {}, {}",
                         print_reg(result),
-                        print_reg(reg),
+                        print_op(reg),
                         print_op(amount)
                     ),
                     StatementKind::Call {

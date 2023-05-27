@@ -148,11 +148,11 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
     // §6.3.1.1 Boolean, characters, and integers
     fn promote(&self, ty: Ty<'cx>, span: Span) -> Result<Coercions<'cx>> {
         Ok(match *ty {
-            TyKind::Char => smallvec![(Coercion::SignExt, self.types.int.signed)],
+            TyKind::Char => smallvec![(Coercion::SignExt, self.lcx.types.int.signed)],
             TyKind::Int(int) if int.1 < IntTyKind::Int => match int.0 {
-                IntSign::Signed => smallvec![(Coercion::SignExt, self.types.int.signed)],
+                IntSign::Signed => smallvec![(Coercion::SignExt, self.lcx.types.int.signed)],
                 IntSign::Unsigned => {
-                    smallvec![(Coercion::ZeroExt, self.types.int.unsigned)]
+                    smallvec![(Coercion::ZeroExt, self.lcx.types.int.unsigned)]
                 }
             },
             TyKind::Int(_) => smallvec![],

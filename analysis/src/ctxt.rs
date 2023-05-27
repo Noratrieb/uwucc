@@ -1,7 +1,10 @@
-use std::cell::{Cell, RefCell};
+use std::{
+    cell::{Cell, RefCell},
+    fmt::Debug,
+};
 
 use parser::{
-    ast::{self, IntTyKind},
+    ast::{self, IntSign, IntTyKind, IntTy},
     Symbol,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -11,26 +14,84 @@ use crate::{
     ty::{Ty, TyKind},
 };
 
-#[derive(Debug)]
 pub struct LoweringCx<'cx> {
     tys: RefCell<FxHashSet<&'cx TyKind<'cx>>>,
     layouts: RefCell<FxHashSet<&'cx Layout>>,
     string_literals: RefCell<FxHashMap<&'cx [u8], DefId>>,
     pub(crate) arena: &'cx bumpalo::Bump,
     next_def_id: Cell<DefId>,
+    pub types: CommonTypes<'cx>,
     /**/
     pub(crate) global_decls: FxHashMap<Symbol, VariableInfo<'cx>>,
 }
 
+impl Debug for LoweringCx<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("lcx")
+    }
+}
+
+pub struct CommonInt<'cx> {
+    pub signed: Ty<'cx>,
+    pub unsigned: Ty<'cx>,
+}
+
+pub struct CommonTypes<'cx> {
+    pub void: Ty<'cx>,
+    pub char: Ty<'cx>,
+    pub su_char: CommonInt<'cx>,
+    pub short: CommonInt<'cx>,
+    pub int: CommonInt<'cx>,
+    pub long: CommonInt<'cx>,
+}
+
+pub(crate) fn intern_ty_inner<'cx>(
+    tys: &RefCell<FxHashSet<&'cx TyKind<'cx>>>,
+    arena: &'cx bumpalo::Bump,
+    kind: TyKind<'cx>,
+) -> Ty<'cx> {
+    let opt_kind = tys.borrow().get(&kind).copied();
+    match opt_kind {
+        Some(ty) => Ty::new_unchecked(ty),
+        None => {
+            let kind = arena.alloc(kind);
+            tys.borrow_mut().insert(kind);
+            Ty::new_unchecked(kind)
+        }
+    }
+}
+
+impl<'cx> CommonTypes<'cx> {
+    fn new(tys: &RefCell<FxHashSet<&'cx TyKind<'cx>>>, arena: &'cx bumpalo::Bump) -> Self {
+        let int = |sign, kind| intern_ty_inner(tys, arena, TyKind::Int(IntTy(sign, kind)));
+        let int_pair = |kind| CommonInt {
+            signed: int(IntSign::Signed, kind),
+            unsigned: int(IntSign::Unsigned, kind),
+        };
+
+        Self {
+            void: intern_ty_inner(tys, arena, TyKind::Void),
+            char: intern_ty_inner(tys, arena, TyKind::Char),
+            su_char: int_pair(IntTyKind::Char),
+            short: int_pair(IntTyKind::Short),
+            int: int_pair(IntTyKind::Int),
+            long: int_pair(IntTyKind::Long),
+        }
+    }
+}
+
 impl<'cx> LoweringCx<'cx> {
     pub fn new(arena: &'cx bumpalo::Bump) -> Self {
+        let tys = RefCell::default();
+        let types = CommonTypes::new(&tys, arena);
         LoweringCx {
-            tys: RefCell::default(),
+            tys,
             layouts: RefCell::default(),
             string_literals: RefCell::default(),
             arena,
             next_def_id: Cell::new(DefId(0)),
             global_decls: FxHashMap::default(),
+            types,
         }
     }
 
@@ -53,15 +114,7 @@ impl<'cx> LoweringCx<'cx> {
     }
 
     pub(crate) fn intern_ty(&self, kind: TyKind<'cx>) -> Ty<'cx> {
-        let opt_kind = self.tys.borrow().get(&kind).copied();
-        match opt_kind {
-            Some(ty) => Ty::new_unchecked(ty),
-            None => {
-                let kind = self.arena.alloc(kind);
-                self.tys.borrow_mut().insert(kind);
-                Ty::new_unchecked(kind)
-            }
-        }
+        intern_ty_inner(&self.tys, self.arena, kind)
     }
 
     fn intern_layout(&self, layout: Layout) -> &'cx Layout {

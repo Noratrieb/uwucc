@@ -1,28 +1,45 @@
 use rustc_hash::FxHashSet;
 
-use super::{Branch, Ir};
+use super::{visit::Visitor, Branch, Func, Register};
 use crate::ir::BbIdx;
 
-pub fn validate(ir: &Ir<'_>) {
-    for fun in ir.funcs.values() {
-        for (i, bb) in fun.bbs.iter().enumerate() {
-            if let Branch::Goto(BbIdx(u32::MAX)) = bb.term {
-                panic!(
-                    "found dummy term in {} in {}",
-                    BbIdx::from_usize(i),
-                    fun.name
-                )
+pub fn validate(func: &Func<'_>) {
+    for (i, bb) in func.bbs.iter().enumerate() {
+        if let Branch::Goto(BbIdx(u32::MAX)) = bb.term {
+            panic!(
+                "found dummy term in {} in {}",
+                BbIdx::from_usize(i),
+                func.name
+            )
+        }
+    }
+
+    let mut reg_names = FxHashSet::default();
+    for reg in &func.regs {
+        if let Some(name) = reg.name {
+            let is_new = reg_names.insert(name);
+            if !is_new {
+                panic!("register name {name} is used twice");
             }
         }
+    }
 
-        let mut reg_names = FxHashSet::default();
-        for reg in &fun.regs {
-            if let Some(name) = reg.name {
-                let is_new = reg_names.insert(name);
-                if !is_new {
-                    panic!("register name {name} is used twice");
-                }
-            }
+    ValidationVisitor { func }.visit_func(func);
+}
+
+struct ValidationVisitor<'a> {
+    func: &'a Func<'a>,
+}
+
+impl Visitor for ValidationVisitor<'_> {
+    fn visit_reg(&mut self, reg: Register) {
+        if self.func.regs.len() <= reg.as_usize() {
+            panic!(
+                "register out of bounds in {}. %{}, {} registers",
+                self.func.name,
+                reg.0,
+                self.func.regs.len()
+            );
         }
     }
 }

@@ -1,10 +1,77 @@
+//! Basic codegen for the x86-64 architecture.
+//! 
+//! We use the [`iced_x86`] crate as our assembler.
+//! 
+//! Then, all IR basic blocks and statements are lowered in a straightforward way.
+//! No optimizations are done. There is some basic register allocation.
+//! 
+//! # Register allocation
+//! 
+//! Register allocation is not very smart, but also not too stupid. It tries to put SSA
+//! registers into machine registers as much as possible.
+//! 
+//! ```text
+//! bb0:
+//!   %0 = 0
+//!   %1 = 1
+//!   %2 = add %0 %1
+//!   switch %2, then bb1, else bb2
+//! 
+//! bb1:
+//!   %3 = add %1, 1
+//!   
+//! bb2:
+//!   %4 = add %2, 2
+//! ```
+//! 
+//! For all SSA registers, we establish their "point of last use". This is the bb,stmt where their last usage occurs.
+//! 
+//! First, we establish a list of possible registers to allocate.
+//! Since we immediately alloca all parameters, all the param registers are free real estate.
+//! Also, `rbx` is always saved on the stack at the start and end.
+//! 
+//! ```text
+//! rax, rbx, rdi, rsi, rcx, rdx, r8, r9
+//! ```
+//! 
+//! This forms our priority list of registers.
+//! 
+//! Every time a statement has a return value, we try to assign that SSA register into a new machine register.
+//! For this, we iterate through the register list above and find the first register that's free. If we see a register
+//! that is not used anymore at the current location, we throw it out and use that new slot.
+//! 
+//! When codegening an SSA register, we look into a lookup table from SSA register to machine register/stack spill and use that.
+//! 
+//! When the list above is full, we spill the register to the stack. This should be rare. If the register doesn't fit into a machine
+//! register, it's also spilled.
+//! 
+//! ## Registers
+//! <https://gitlab.com/x86-psABIs/x86-64-ABI>
+//! 
+//! | name     | description          | callee-saved |
+//! | -------- | -------------------- | ------------ |
+//! | %rax     | temporary register; with variable arguments passes information about the number of vector registers used; 1st return register | No |
+//! | %rbx     | callee-saved register | Yes |
+//! | %rcx     | used to pass 4th integer argument to functions | No |
+//! | %rdx     | used to pass 3rd argument to functions; 2nd return register | No |
+//! | %rsp     | stack pointer | Yes |
+//! | %rbp     | callee-saved register; optionally used as frame pointer | Yes |
+//! | %rsi     | used to pass 2nd argument to functions | No |
+//! | %rdi     | used to pass 1st argument to functions | No |
+//! | %r8      | used to pass 5th argument to functions | No |
+//! | %r9      | used to pass 6th argument to functions | No |
+//! | %r10     | temporary register, used for passing a function’s static chain pointer | No |
+//! | %r11     | temporary register | No |
+//! | %r12-r14 | callee-saved registers | Yes |
+//! | %r15     | callee-saved register; optionally used as GOT base pointer | Yes |
+
 use analysis::{
-    ir::{BbIdx, ConstValue, Func, Operand, Register, Statement, StatementKind},
+    ir::{BbIdx, Func, Operand, Register, Statement, StatementKind},
     LoweringCx,
 };
 use iced_x86::{
     code_asm::{self as x, CodeAssembler},
-    IcedError, Instruction,
+    IcedError, 
 };
 use parser::Span;
 use rustc_hash::FxHashMap;
@@ -51,7 +118,7 @@ impl<'cx> AsmCtxt<'cx> {
 
                 match *kind {
                     StatementKind::Alloca {
-                        reg,
+                        result: reg,
                         size,
                         align: _,
                     } => {
@@ -110,7 +177,7 @@ impl<'cx> AsmCtxt<'cx> {
                     StatementKind::UnaryOperation { rhs, kind, result } => todo!(),
                     StatementKind::PtrOffset {
                         result,
-                        reg,
+                        ptr: reg,
                         amount,
                     } => todo!(),
                     StatementKind::Call {

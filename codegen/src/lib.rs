@@ -1,4 +1,6 @@
-mod x86;
+#![allow(unused)]
+
+mod x86_64;
 
 use std::process::Stdio;
 
@@ -20,7 +22,7 @@ pub fn generate<'cx>(lcx: &'cx LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
     let text = obj.add_section(Vec::new(), b".text".to_vec(), object::SectionKind::Text);
 
     for (_def_id, func) in &ir.funcs {
-        let code = x86::generate_func(lcx, func)?;
+        let code = x86_64::generate_func(lcx, func)?;
 
         let offset = obj.append_section_data(text, &code, 8);
 

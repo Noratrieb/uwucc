@@ -53,17 +53,3 @@ def main() {
     ret 0
 }
 ```
-
-```x86asm
-sub rbp, 4  ; a
-sub rbp, 4  ; %1
-mov rbx, 3
-mul rbx, 4
-mov dword ptr [rbp], rbx
-sub rbp, 4  ; %2
-mov rbx, 1
-add rbx, dword ptr [rbp + 4]
-mov dword ptr [rbp + 8], dword ptr [rbp]
-xor rax, rax
-ret
-```

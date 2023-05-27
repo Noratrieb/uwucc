@@ -32,6 +32,10 @@ impl Span {
         Self { start, end }
     }
 
+    pub fn dummy() -> Self {
+        Self::start_end(0, 0)
+    }
+
     pub fn extend(&self, rhs: Self) -> Self {
         Self::start_end(self.start, rhs.end)
     }

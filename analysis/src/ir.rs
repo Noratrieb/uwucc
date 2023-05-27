@@ -31,11 +31,19 @@
 //!   call yeet(%val)
 //! ```
 
+mod custom;
+mod info;
 mod pretty;
 mod validate;
+mod visit;
+
+#[doc(hidden)]
+pub use custom::help as custom_help;
 
 use std::fmt::{Debug, Display};
 
+pub use custom::define_ir_func;
+use either::Either;
 use parser::{ast, Span, Symbol};
 pub use pretty::{func_to_string, ir_to_string};
 use rustc_hash::FxHashMap;
@@ -74,6 +82,13 @@ pub struct Layout {
     pub align: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Location {
+    pub bb: BbIdx,
+    /// None means the terminator.
+    pub stmt: Option<usize>,
+}
+
 pub struct Ir<'cx> {
     pub funcs: FxHashMap<DefId, Func<'cx>>,
 }
@@ -89,7 +104,7 @@ pub struct Func<'cx> {
     pub arity: usize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BbIdx(pub u32);
 
 #[derive(Debug, Clone)]
@@ -116,7 +131,7 @@ pub struct Statement {
 #[derive(Debug, Clone)]
 pub enum StatementKind {
     Alloca {
-        reg: Register,
+        result: Register,
         size: Operand,
         align: Operand,
     },
@@ -133,19 +148,19 @@ pub enum StatementKind {
         align: Operand,
     },
     BinOp {
+        result: Register,
         kind: BinKind,
         lhs: Operand,
         rhs: Operand,
-        result: Register,
     },
     UnaryOperation {
-        rhs: Operand,
-        kind: UnaryKind,
         result: Register,
+        kind: UnaryKind,
+        rhs: Operand,
     },
     PtrOffset {
         result: Register,
-        reg: Register,
+        ptr: Operand,
         amount: Operand,
     },
     Call {
@@ -209,6 +224,9 @@ pub enum ConstValue {
 }
 
 impl Func<'_> {
+    pub fn bb(&self, i: BbIdx) -> &BasicBlock {
+        &self.bbs[i.as_usize()]
+    }
     pub fn bb_mut(&mut self, i: BbIdx) -> &mut BasicBlock {
         &mut self.bbs[i.as_usize()]
     }
@@ -219,7 +237,13 @@ impl BbIdx {
         Self(n.try_into().unwrap())
     }
     pub fn as_usize(self) -> usize {
-        self.0 as _
+        self.0.try_into().unwrap()
+    }
+}
+
+impl Register {
+    pub fn as_usize(self) -> usize {
+        self.0.try_into().unwrap()
     }
 }
 
@@ -264,5 +288,13 @@ impl Operand {
 impl Branch {
     pub fn dummy() -> Self {
         Branch::Goto(BbIdx(u32::MAX))
+    }
+
+    pub fn successors(&self) -> impl Iterator<Item = BbIdx> {
+        match self {
+            Branch::Goto(bb) => Either::Left(Some(*bb).into_iter()),
+            Branch::Switch { cond: _, yes, no } => Either::Right([*yes, *no].into_iter()),
+            Branch::Ret(_) => Either::Left(None.into_iter()),
+        }
     }
 }

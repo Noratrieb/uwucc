@@ -55,7 +55,7 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
         let stmt = Statement {
             span,
             kind: StatementKind::Alloca {
-                reg,
+                result: reg,
                 size: Operand::Const(ConstValue::u64(layout.size)),
                 align: Operand::Const(ConstValue::u64(layout.align)),
             },

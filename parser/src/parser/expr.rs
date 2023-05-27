@@ -1,6 +1,6 @@
 //! The expression parser is implemented as a pratt parser.
 //!
-//! For more information, see https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+//! For more information, see <https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html>
 
 use crate::{
     ast::{
