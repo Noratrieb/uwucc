@@ -8,7 +8,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             FunctionDef(FunctionDef {
                 decl: Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        ty: Integer(IntTy(Signed, Int)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -32,7 +32,28 @@ expression: "(parsed_pretty, pretty_printed_source)"
                         Expr(
                             Postfix(ExprPostfix {
                                 lhs: (Atom(Ident((puts, 18..22))), 18..22),
-                                op: Call([(Atom(String("Hello, world!")), 23..37)]),
+                                op: Call([
+                                    (
+                                        Atom(
+                                            String([
+                                                72,
+                                                101,
+                                                108,
+                                                108,
+                                                111,
+                                                44,
+                                                32,
+                                                119,
+                                                111,
+                                                114,
+                                                108,
+                                                100,
+                                                33,
+                                            ]),
+                                        ),
+                                        23..37,
+                                    ),
+                                ]),
                             }),
                         ),
                         22..39,

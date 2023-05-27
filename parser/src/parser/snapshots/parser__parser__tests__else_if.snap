@@ -8,7 +8,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             FunctionDef(FunctionDef {
                 decl: Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        ty: Integer(IntTy(Signed, Int)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -31,13 +31,13 @@ expression: "(parsed_pretty, pretty_printed_source)"
                     (
                         If {
                             cond: (Atom(Int(1)), 22..23),
-                            then: [(Expr(Atom(String("a"))), 35..37)],
+                            then: [(Expr(Atom(String([97]))), 35..37)],
                             otherwise: Some([
                                 (
                                     If {
                                         cond: (Atom(Int(2)), 55..56),
-                                        then: [(Expr(Atom(String("b"))), 68..70)],
-                                        otherwise: Some([(Expr(Atom(String("c"))), 94..96)]),
+                                        then: [(Expr(Atom(String([98]))), 68..70)],
+                                        otherwise: Some([(Expr(Atom(String([99]))), 94..96)]),
                                     },
                                     51..70,
                                 ),

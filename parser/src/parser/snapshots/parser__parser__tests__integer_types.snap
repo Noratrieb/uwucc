@@ -31,7 +31,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: SChar,
+                        ty: Integer(IntTy(Signed, Char)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -54,7 +54,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: UChar,
+                        ty: Integer(IntTy(Unsigned, Char)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -77,7 +77,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Short }),
+                        ty: Integer(IntTy(Signed, Short)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -100,7 +100,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Short }),
+                        ty: Integer(IntTy(Signed, Short)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -123,7 +123,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Short }),
+                        ty: Integer(IntTy(Signed, Short)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -146,7 +146,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Short }),
+                        ty: Integer(IntTy(Signed, Short)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -169,10 +169,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy {
-                            sign: Unsigned,
-                            kind: Short,
-                        }),
+                        ty: Integer(IntTy(Unsigned, Short)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -195,10 +192,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy {
-                            sign: Unsigned,
-                            kind: Short,
-                        }),
+                        ty: Integer(IntTy(Unsigned, Short)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -221,7 +215,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        ty: Integer(IntTy(Signed, Int)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -244,7 +238,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        ty: Integer(IntTy(Signed, Int)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -267,7 +261,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Int }),
+                        ty: Integer(IntTy(Signed, Int)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -290,7 +284,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Unsigned, kind: Int }),
+                        ty: Integer(IntTy(Unsigned, Int)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -313,7 +307,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Unsigned, kind: Int }),
+                        ty: Integer(IntTy(Unsigned, Int)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -336,7 +330,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Long }),
+                        ty: Integer(IntTy(Signed, Long)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -359,7 +353,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Long }),
+                        ty: Integer(IntTy(Signed, Long)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -382,7 +376,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Long }),
+                        ty: Integer(IntTy(Signed, Long)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -405,7 +399,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy { sign: Signed, kind: Long }),
+                        ty: Integer(IntTy(Signed, Long)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -428,10 +422,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy {
-                            sign: Unsigned,
-                            kind: Long,
-                        }),
+                        ty: Integer(IntTy(Unsigned, Long)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -454,10 +445,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy {
-                            sign: Unsigned,
-                            kind: Long,
-                        }),
+                        ty: Integer(IntTy(Unsigned, Long)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -480,10 +468,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy {
-                            sign: Signed,
-                            kind: LongLong,
-                        }),
+                        ty: Integer(IntTy(Signed, LongLong)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -506,10 +491,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy {
-                            sign: Signed,
-                            kind: LongLong,
-                        }),
+                        ty: Integer(IntTy(Signed, LongLong)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -532,10 +514,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy {
-                            sign: Signed,
-                            kind: LongLong,
-                        }),
+                        ty: Integer(IntTy(Signed, LongLong)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -558,10 +537,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy {
-                            sign: Signed,
-                            kind: LongLong,
-                        }),
+                        ty: Integer(IntTy(Signed, LongLong)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -584,10 +560,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy {
-                            sign: Unsigned,
-                            kind: LongLong,
-                        }),
+                        ty: Integer(IntTy(Unsigned, LongLong)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -610,10 +583,7 @@ expression: "(parsed_pretty, pretty_printed_source)"
             Decl(
                 Normal(NormalDecl {
                     decl_spec: DeclSpec {
-                        ty: Integer(IntTy {
-                            sign: Unsigned,
-                            kind: LongLong,
-                        }),
+                        ty: Integer(IntTy(Unsigned, LongLong)),
                         attrs: "(empty)",
                     },
                     init_declarators: [
@@ -633,5 +603,5 @@ expression: "(parsed_pretty, pretty_printed_source)"
             771..795,
         ),
     ]),
-    "char a = 1;\nsigned char b = 2;\nunsigned char c = 3;\nshort d = 4;\nshort e = 6;\nshort f = 5;\nshort g = 7;\nunsigned short h = 8;\nunsigned short i = 9;\nint j = 10;\nint k = 11;\nint l = 12;\nunsigned int m = 13;\nunsigned int n = 14;\nlong o = 15;\nlong p = 16;\nlong q = 17;\nlong r = 18;\nunsigned long s = 19;\nunsigned long t = 20;\nlong long u = 21;\nlong long v = 22;\nlong long w = 23;\nlong long x = 24;\nunsigned long long y = 25;\nunsigned long long z = 26;\n",
+    "char a = 1;\nchar b = 2;\nunsigned char c = 3;\nshort d = 4;\nshort e = 6;\nshort f = 5;\nshort g = 7;\nunsigned short h = 8;\nunsigned short i = 9;\nint j = 10;\nint k = 11;\nint l = 12;\nunsigned int m = 13;\nunsigned int n = 14;\nlong o = 15;\nlong p = 16;\nlong q = 17;\nlong r = 18;\nunsigned long s = 19;\nunsigned long t = 20;\nlong long u = 21;\nlong long v = 22;\nlong long w = 23;\nlong long x = 24;\nunsigned long long y = 25;\nunsigned long long z = 26;\n",
 )
