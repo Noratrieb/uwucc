@@ -54,7 +54,7 @@ pub fn generate<'cx>(lcx: &'cx LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
     let output = std::process::Command::new("cc")
         .arg("main.o")
         .stdout(Stdio::inherit())
-        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .output()
         .map_err(|err| analysis::Error::new_without_span(format!("failed to spawn `cc`: {err}")))?;
 

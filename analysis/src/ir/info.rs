@@ -38,9 +38,7 @@ pub fn last_register_uses(func: &Func<'_>) -> Vec<Option<Location>> {
 
         let mut check_op = |op: Operand, stmt| match op {
             Operand::Reg(reg) => {
-                dbg!(("reg use", reg, stmt));
                 if uses[reg.as_usize()].is_none() {
-                    dbg!("insert!");
                     uses[reg.as_usize()] = Some(Location { bb, stmt })
                 }
             }
@@ -68,6 +66,29 @@ pub fn last_register_uses(func: &Func<'_>) -> Vec<Option<Location>> {
     }
 
     uses
+}
+
+pub fn dominates_location(f: &Func<'_>, dom: Location, sub: Location) -> bool {
+    // TODO: Can this be made more efficient by caching renumberings of bbs?
+    if dom.bb == sub.bb {
+        return match (dom.stmt, sub.stmt) {
+            (None, Some(_)) => true,
+            (Some(d_i), Some(s_i)) if d_i < s_i => true,
+            _ => false,
+        };
+    }
+
+    let mut seen = FxHashSet::default();
+    let mut worklist = vec![dom.bb];
+
+    while let Some(bb) = worklist.pop() {
+        if !seen.insert(bb) {
+            continue;
+        }
+        worklist.extend(f.bb(bb).term.successors());
+    }
+
+    seen.contains(&sub.bb)
 }
 
 #[cfg(test)]

@@ -32,7 +32,7 @@
 //! ```
 
 mod custom;
-mod info;
+pub mod info;
 mod pretty;
 mod validate;
 mod visit;

@@ -1,53 +1,53 @@
 //! Basic codegen for the x86-64 architecture.
-//! 
+//!
 //! We use the [`iced_x86`] crate as our assembler.
-//! 
+//!
 //! Then, all IR basic blocks and statements are lowered in a straightforward way.
 //! No optimizations are done. There is some basic register allocation.
-//! 
+//!
 //! # Register allocation
-//! 
+//!
 //! Register allocation is not very smart, but also not too stupid. It tries to put SSA
 //! registers into machine registers as much as possible.
-//! 
+//!
 //! ```text
 //! bb0:
 //!   %0 = 0
 //!   %1 = 1
 //!   %2 = add %0 %1
 //!   switch %2, then bb1, else bb2
-//! 
+//!
 //! bb1:
 //!   %3 = add %1, 1
 //!   
 //! bb2:
 //!   %4 = add %2, 2
 //! ```
-//! 
+//!
 //! For all SSA registers, we establish their "point of last use". This is the bb,stmt where their last usage occurs.
-//! 
+//!
 //! First, we establish a list of possible registers to allocate.
 //! Since we immediately alloca all parameters, all the param registers are free real estate.
 //! Also, `rbx` is always saved on the stack at the start and end.
-//! 
+//!
 //! ```text
 //! rax, rbx, rdi, rsi, rcx, rdx, r8, r9
 //! ```
-//! 
+//!
 //! This forms our priority list of registers.
-//! 
+//!
 //! Every time a statement has a return value, we try to assign that SSA register into a new machine register.
 //! For this, we iterate through the register list above and find the first register that's free. If we see a register
 //! that is not used anymore at the current location, we throw it out and use that new slot.
-//! 
+//!
 //! When codegening an SSA register, we look into a lookup table from SSA register to machine register/stack spill and use that.
-//! 
+//!
 //! When the list above is full, we spill the register to the stack. This should be rare. If the register doesn't fit into a machine
 //! register, it's also spilled.
-//! 
+//!
 //! ## Registers
 //! <https://gitlab.com/x86-psABIs/x86-64-ABI>
-//! 
+//!
 //! | name     | description          | callee-saved |
 //! | -------- | -------------------- | ------------ |
 //! | %rax     | temporary register; with variable arguments passes information about the number of vector registers used; 1st return register | No |
@@ -66,12 +66,12 @@
 //! | %r15     | callee-saved register; optionally used as GOT base pointer | Yes |
 
 use analysis::{
-    ir::{BbIdx, Func, Operand, Register, Statement, StatementKind},
+    ir::{self, BbIdx, Func, Location, Operand, Register, Statement, StatementKind},
     LoweringCx,
 };
 use iced_x86::{
     code_asm::{self as x, CodeAssembler},
-    IcedError, 
+    IcedError,
 };
 use parser::Span;
 use rustc_hash::FxHashMap;
@@ -91,22 +91,59 @@ impl<T> IcedErrExt for Result<T, IcedError> {
     }
 }
 
+/// A machine register from our register list described in the module documentation.
+#[derive(Debug, Clone, Copy)]
+struct MachineReg(usize);
+
 #[derive(Debug, Clone, Copy)]
 enum RegValue {
+    /// The SSA register resides on the stack as it has been spilled.
     Stack { offset: u64 },
+    /// The SSA register resides in a machine register
+    MachineReg(MachineReg),
 }
 
 struct AsmCtxt<'cx> {
     lcx: &'cx LoweringCx<'cx>,
     a: CodeAssembler,
     reg_map: FxHashMap<Register, RegValue>,
+    reg_occupancy: Vec<Option<Register>>,
     current_stack_offset: u64,
     bb_idx: BbIdx,
+
+    // caches
+    last_register_uses: Vec<Option<Location>>,
 }
 
 impl<'cx> AsmCtxt<'cx> {
+    fn allocate_result_ssa_reg(
+        &mut self,
+        f: &Func<'_>,
+        reg: Register,
+        location: Location,
+    ) -> RegValue {
+        for (i, opt_reg) in self.reg_occupancy.iter_mut().enumerate() {
+            if let Some(reg) = opt_reg.as_mut() {
+                if let Some(last_use) = self.last_register_uses[reg.as_usize()] {
+                    if ir::info::dominates_location(f, last_use, location) {
+                        // The last use dominates our location - the SSA reg is dead now.
+                        *opt_reg = None;
+                    }
+                }
+            }
+
+            if opt_reg.is_none() {
+                *opt_reg = Some(reg);
+                return RegValue::MachineReg(MachineReg(i));
+            }
+        }
+
+        todo!("spill.")
+    }
+
     fn generate_func(&mut self, func: &Func<'cx>) -> Result<()> {
         // TODO: Prologue
+        self.a.push(x::rbx);
 
         loop {
             let bb = &func.bbs[self.bb_idx.as_usize()];
@@ -149,6 +186,7 @@ impl<'cx> AsmCtxt<'cx> {
                             let value = self.reg_map[&reg];
                             let stack_offset = match value {
                                 RegValue::Stack { offset } => offset,
+                                RegValue::MachineReg(_) => todo!("machine reg"),
                             };
                             //let rhs = match value {
                             //    Operand::Const(c) => {}
@@ -167,24 +205,26 @@ impl<'cx> AsmCtxt<'cx> {
                         ptr,
                         size,
                         align,
-                    } => todo!(),
+                    } => todo!("loads."),
                     StatementKind::BinOp {
                         kind,
                         lhs,
                         rhs,
                         result,
-                    } => todo!(),
-                    StatementKind::UnaryOperation { rhs, kind, result } => todo!(),
+                    } => todo!("binary operations"),
+                    StatementKind::UnaryOperation { rhs, kind, result } => {
+                        todo!("unary operations")
+                    }
                     StatementKind::PtrOffset {
                         result,
                         ptr: reg,
                         amount,
-                    } => todo!(),
+                    } => todo!("pointer offset :D"),
                     StatementKind::Call {
                         result,
                         func,
                         ref args,
-                    } => todo!(),
+                    } => todo!("function calls 💀"),
                 }
             }
 
@@ -205,8 +245,10 @@ pub fn generate_func<'cx>(lcx: &'cx LoweringCx<'cx>, func: &Func<'cx>) -> Result
         lcx,
         a,
         reg_map: FxHashMap::default(),
+        reg_occupancy: vec![None; 8],
         current_stack_offset: 0,
         bb_idx: BbIdx(0),
+        last_register_uses: ir::info::last_register_uses(func),
     };
 
     cx.generate_func(func)?;
