@@ -20,7 +20,7 @@ pub fn generate<'cx>(lcx: &'cx LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
 
     let text = obj.add_section(Vec::new(), b".text".to_vec(), object::SectionKind::Text);
 
-    for (_def_id, func) in &ir.funcs {
+    for func in ir.funcs.values() {
         let code = x86_64::generate_func(lcx, func)?;
 
         let offset = obj.append_section_data(text, &code, 8);
@@ -59,7 +59,7 @@ pub fn generate<'cx>(lcx: &'cx LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
         .map_err(|err| Error::new_without_span(format!("failed to spawn `cc`: {err}")))?;
 
     if !output.status.success() {
-        return Err(Error::new_without_span(format!("linking with `cc` failed")));
+        return Err(Error::new_without_span("linking with `cc` failed"));
     } else {
         // std::fs::remove_file("main.o").map_err(|err| {
         //     analysis::Error::new_without_span(format!(

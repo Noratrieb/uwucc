@@ -1,22 +1,22 @@
 pub mod help {
     use crate::ir::{ConstValue, Operand, Register};
 
-    pub trait AsOperand {
-        fn as_operand(self) -> Operand;
+    pub trait ToOperand {
+        fn to_operand(self) -> Operand;
     }
 
-    pub fn op(o: impl AsOperand) -> Operand {
-        o.as_operand()
+    pub fn op(o: impl ToOperand) -> Operand {
+        o.to_operand()
     }
 
-    impl AsOperand for Register {
-        fn as_operand(self) -> Operand {
+    impl ToOperand for Register {
+        fn to_operand(self) -> Operand {
             Operand::Reg(self)
         }
     }
 
-    impl AsOperand for u64 {
-        fn as_operand(self) -> Operand {
+    impl ToOperand for u64 {
+        fn to_operand(self) -> Operand {
             Operand::Const(ConstValue::u64(self))
         }
     }

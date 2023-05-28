@@ -42,7 +42,7 @@ pub fn lower_translation_unit<'cx>(
                 };
 
                 let def_id = lcx.next_def_id();
-                let func = lower_func(&lcx, body, def_span, ident.0, ret_ty, params)?;
+                let func = lower_func(lcx, body, def_span, ident.0, ret_ty, params)?;
 
                 let args = &*lcx
                     .arena
@@ -450,7 +450,7 @@ fn lower_func<'cx>(
             def_span,
             ret_ty,
             lcx,
-            params.len().try_into().unwrap(),
+            params.len(),
         ),
         lcx,
     };

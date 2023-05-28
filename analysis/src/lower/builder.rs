@@ -105,7 +105,7 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
     }
 
     pub fn load(&mut self, tyl: TyLayout<'cx>, ptr: Operand, span: Span) -> Register {
-        let reg = self.new_reg(None, tyl.clone());
+        let reg = self.new_reg(None, tyl);
         let stmt = StatementKind::Load {
             result: reg,
             ptr,

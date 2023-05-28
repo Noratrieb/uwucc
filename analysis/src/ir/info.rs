@@ -3,7 +3,7 @@ use rustc_hash::FxHashSet;
 use super::{BbIdx, Branch, Func, Location, Operand};
 use crate::ir::visit::Visitor;
 
-pub fn traverse_postorder<'a>(func: &'a Func<'_>) -> Vec<BbIdx> {
+pub fn traverse_postorder(func: &Func<'_>) -> Vec<BbIdx> {
     // the final traversial, backwards.
     // the starting bb has to be visited last.
     let mut traversal = vec![BbIdx(0)];

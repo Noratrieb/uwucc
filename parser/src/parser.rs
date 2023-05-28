@@ -542,7 +542,7 @@ where
         let cond = self.expr()?;
         let _paren_span = expect!(self, Tok::Punct(P::ParenClose));
         let then = self.compount_or_single_statement()?;
-        let otherwise = if let Some(_) = eat!(self, Tok::Kw(Kw::Else)) {
+        let otherwise = if eat!(self, Tok::Kw(Kw::Else)).is_some() {
             Some(self.compount_or_single_statement()?)
         } else {
             None

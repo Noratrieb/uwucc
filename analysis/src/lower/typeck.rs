@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use parser::{
     ast::{IntSign, IntTy, IntTyKind},
     Error, Span,
@@ -61,15 +63,18 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
                 } else if (lhs_sign.unsigned() && rhs_prom_int.0.unsigned())
                     || (lhs_sign.signed() && rhs_sign.signed())
                 {
-                    if lhs_kind > rhs_kind {
-                        rhs_coerce.extend(self.coerce(rhs_prom, lhs_prom)?);
-                        lhs
-                    } else if lhs_kind < rhs_kind {
-                        lhs_coerce.extend(self.coerce(lhs_prom, rhs_prom)?);
-                        rhs
-                    } else {
-                        unreachable!("integers must have different rank here")
+                    match lhs_kind.cmp(&rhs_kind) {
+                        Ordering::Greater => {
+                            rhs_coerce.extend(self.coerce(rhs_prom, lhs_prom)?);
+                            lhs
+                        }
+                        Ordering::Less => {
+                            lhs_coerce.extend(self.coerce(lhs_prom, rhs_prom)?);
+                            rhs
+                        }
+                        Ordering::Equal => unreachable!("integers must have different rank here"),
                     }
+
                 // Otherwise, if the operand that has unsigned integer type has rank greater or
                 // equal to the rank of the type of the other operand, then the operand with
                 // signed integer type is converted to the type of the operand with unsigned
