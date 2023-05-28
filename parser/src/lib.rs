@@ -63,7 +63,6 @@ impl Debug for Span {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Error {
     pub msg: String,
@@ -103,7 +102,6 @@ impl Error {
     }
 }
 
-
 impl DebugPls for Error {
     fn fmt(&self, f: dbg_pls::Formatter<'_>) {
         f.debug_struct("Error")
@@ -112,7 +110,6 @@ impl DebugPls for Error {
             .finish();
     }
 }
-
 
 fn lex_and_pre(src: &str) -> impl Iterator<Item = (Token<'_>, Span)> + '_ {
     let pre_tokens = pre::preprocess_tokens(src);

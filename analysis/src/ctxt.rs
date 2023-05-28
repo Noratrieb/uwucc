@@ -4,7 +4,7 @@ use std::{
 };
 
 use parser::{
-    ast::{self, IntSign, IntTyKind, IntTy},
+    ast::{self, IntSign, IntTy, IntTyKind},
     Symbol,
 };
 use rustc_hash::{FxHashMap, FxHashSet};

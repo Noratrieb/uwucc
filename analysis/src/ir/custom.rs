@@ -1,5 +1,5 @@
 pub mod help {
-    use crate::ir::{Operand, Register, ConstValue};
+    use crate::ir::{ConstValue, Operand, Register};
 
     pub trait AsOperand {
         fn as_operand(self) -> Operand;

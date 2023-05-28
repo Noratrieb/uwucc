@@ -65,7 +65,11 @@ impl<W: Write> PrettyPrinter<W> {
 
             for stmt in &bb.statements {
                 match stmt.kind {
-                    StatementKind::Alloca { result: reg, size, align } => {
+                    StatementKind::Alloca {
+                        result: reg,
+                        size,
+                        align,
+                    } => {
                         writeln!(
                             self.out,
                             "    {} = alloca, size={}, align={}",

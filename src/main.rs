@@ -1,16 +1,32 @@
+use std::io::Read;
+
 use analysis::LoweringCx;
 use parser::Error;
 
 fn main() {
     let input_file = std::env::args().nth(1).expect("first argument");
-    let src = std::fs::read_to_string(&input_file).unwrap_or_else(|err| {
-        eprintln!("failed to read file {input_file}: {err}");
-        std::process::exit(1);
-    });
+
+    let (filename, src) = if input_file == "-" {
+        let mut buf = String::new();
+        std::io::stdin()
+            .lock()
+            .read_to_string(&mut buf)
+            .unwrap_or_else(|err| {
+                eprintln!("failed to read file {input_file}: {err}");
+                std::process::exit(1);
+            });
+        ("<stdin>".into(), buf)
+    } else {
+        let src = std::fs::read_to_string(&input_file).unwrap_or_else(|err| {
+            eprintln!("failed to read file {input_file}: {err}");
+            std::process::exit(1);
+        });
+        (input_file, src)
+    };
 
     let ast = parser::parse_file(&src);
     // dbg_pls::color!(&ast);
-    let ast = ast.unwrap_or_else(|err| report_fatal(&input_file, &src, err));
+    let ast = ast.unwrap_or_else(|err| report_fatal(&filename, &src, err));
     let mut printer = parser::pretty::PrettyPrinter::new(std::io::stdout().lock(), false);
     println!("-------- AST pretty");
     printer.translation_unit(&ast).unwrap();
@@ -20,10 +36,10 @@ fn main() {
 
     println!("-------- IR");
     let ir = analysis::lower_translation_unit(&mut lcx, &ast)
-        .unwrap_or_else(|err| report_fatal(&input_file, &src, err));
+        .unwrap_or_else(|err| report_fatal(&filename, &src, err));
 
     println!("-------- ASM");
-    codegen::generate(&lcx, &ir).unwrap_or_else(|err| report_fatal(&input_file, &src, err));
+    codegen::generate(&lcx, &ir).unwrap_or_else(|err| report_fatal(&filename, &src, err));
 }
 
 fn report_fatal(filename: &str, source: &str, error: Error) -> ! {

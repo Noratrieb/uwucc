@@ -38,7 +38,7 @@ pub trait Visitor {
                 self.visit_reg(result);
                 self.visit_operand(size);
                 self.visit_operand(align);
-            },
+            }
             StatementKind::Store {
                 ptr,
                 value,
@@ -49,7 +49,7 @@ pub trait Visitor {
                 self.visit_operand(value);
                 self.visit_operand(size);
                 self.visit_operand(align);
-            },
+            }
             StatementKind::Load {
                 result,
                 ptr,
@@ -60,7 +60,7 @@ pub trait Visitor {
                 self.visit_operand(ptr);
                 self.visit_operand(size);
                 self.visit_operand(align);
-            },
+            }
             StatementKind::BinOp {
                 kind: _,
                 lhs,
@@ -70,11 +70,15 @@ pub trait Visitor {
                 self.visit_reg(result);
                 self.visit_operand(lhs);
                 self.visit_operand(rhs);
-            },
-            StatementKind::UnaryOperation { rhs, kind: _, result } => {
+            }
+            StatementKind::UnaryOperation {
+                rhs,
+                kind: _,
+                result,
+            } => {
                 self.visit_reg(result);
                 self.visit_operand(rhs);
-            },
+            }
             StatementKind::PtrOffset {
                 result,
                 ptr,
@@ -83,14 +87,18 @@ pub trait Visitor {
                 self.visit_reg(result);
                 self.visit_operand(ptr);
                 self.visit_operand(amount);
-            },
-            StatementKind::Call { result, func, ref args } => {
+            }
+            StatementKind::Call {
+                result,
+                func,
+                ref args,
+            } => {
                 self.visit_reg(result);
                 self.visit_operand(func);
                 for &arg in args {
                     self.visit_operand(arg);
                 }
-            },
+            }
         }
     }
 

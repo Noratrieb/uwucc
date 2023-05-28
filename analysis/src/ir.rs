@@ -37,12 +37,11 @@ mod pretty;
 mod validate;
 mod visit;
 
-#[doc(hidden)]
-pub use custom::help as custom_help;
-
 use std::fmt::{Debug, Display};
 
 pub use custom::define_ir_func;
+#[doc(hidden)]
+pub use custom::help as custom_help;
 use either::Either;
 use parser::{ast, Span, Symbol};
 pub use pretty::{func_to_string, ir_to_string};

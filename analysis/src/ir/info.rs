@@ -1,8 +1,7 @@
 use rustc_hash::FxHashSet;
 
-use crate::ir::visit::Visitor;
-
 use super::{BbIdx, Branch, Func, Location, Operand};
+use crate::ir::visit::Visitor;
 
 pub fn traverse_postorder<'a>(func: &'a Func<'_>) -> Vec<BbIdx> {
     // the final traversial, backwards.
