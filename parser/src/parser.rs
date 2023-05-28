@@ -1,4 +1,3 @@
-use dbg_pls::{DebugPls, Formatter};
 use peekmore::PeekMoreIterator;
 
 use crate::{
@@ -10,41 +9,22 @@ use crate::{
     pre::Punctuator as P,
     sym::Symbol,
     token::{Keyword as Kw, Token as Tok},
-    Span, Spanned,
+    Error, Span, Spanned,
 };
 
 mod expr;
 
-#[derive(Debug)]
-pub struct ParserError {
-    span: Span,
-    message: String,
-}
-
-impl ParserError {
-    fn new(span: Span, message: String) -> Self {
-        Self { span, message }
-    }
-
+impl Error {
     fn eof() -> Self {
-        Self::new(Span::default(), "unexpected end of file".to_string())
+        Self::new("unexpected end of file", Span::default())
     }
 
     fn unsupported(span: Span, token: &Tok<'_>) -> Self {
-        Self::new(span, format!("`{token}` is not supported"))
+        Self::new(format!("`{token}` is not supported"), span)
     }
 }
 
-impl DebugPls for ParserError {
-    fn fmt(&self, f: Formatter<'_>) {
-        f.debug_struct("ParserError")
-            .field("span", &self.span)
-            .field("message", &self.message)
-            .finish();
-    }
-}
-
-type Result<T, E = ParserError> = std::result::Result<T, E>;
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub struct Parser<'src, I>
 where
@@ -59,12 +39,12 @@ macro_rules! expect_parser {
         match $self.next_t()? {
             ($pat, span) => span,
             (token, span) => {
-                return Err(ParserError::new(
-                    span,
+                return Err(Error::new(
                     format!(
                         concat!("expected `", stringify!($pat), "`, found {}"),
                         token
                     ),
+                    span,
                 ))
             }
         }
@@ -126,23 +106,23 @@ where
     }
 
     fn next_t(&mut self) -> Result<(Tok<'src>, Span)> {
-        self.lex.next().ok_or_else(ParserError::eof)
+        self.lex.next().ok_or_else(Error::eof)
     }
 
     fn peek_t(&mut self) -> Result<&(Tok<'src>, Span)> {
-        self.lex.peek().ok_or_else(ParserError::eof)
+        self.lex.peek().ok_or_else(Error::eof)
     }
 
     fn peek_t_n(&mut self, n: usize) -> Result<&(Tok<'src>, Span)> {
-        self.lex.peek_nth(n).ok_or_else(ParserError::eof)
+        self.lex.peek_nth(n).ok_or_else(Error::eof)
     }
 
     fn ident(&mut self) -> Result<Ident> {
         match self.next_t()? {
             (Tok::Ident(ident), span) => Ok((Symbol::intern(ident), span)),
-            (tok, span) => Err(ParserError::new(
-                span,
+            (tok, span) => Err(Error::new(
                 format!("expected identifier, found `{tok}`"),
+                span,
             )),
         }
     }
@@ -176,7 +156,7 @@ where
     /// This does NOT eat the semicolon!
     fn declaration(&mut self) -> Result<Spanned<Decl>> {
         if let Some((tok, span)) = eat!(self, Tok::Kw(Kw::StaticAssert)) {
-            return Err(ParserError::unsupported(span, &tok));
+            return Err(Error::unsupported(span, &tok));
         }
 
         let (decl_spec, span) = self.decl_specifiers()?;
@@ -264,7 +244,7 @@ where
                 // (6.7.5) alignment-specifier:
                 Tok::Kw(Kw::Alignas) => {
                     let (token, span) = self.next_t()?;
-                    return Err(ParserError::unsupported(span, &token));
+                    return Err(Error::unsupported(span, &token));
                 }
                 // if it's neither of the above, it has to be a type-specifier
                 _ => {
@@ -319,10 +299,7 @@ where
                 }
                 Tok::Kw(Kw::Signed) => {
                     if signedness.is_some() {
-                        return Err(ParserError::new(
-                            span,
-                            "cannot specify signedness twice".to_string(),
-                        ));
+                        return Err(Error::new("cannot specify signedness twice", span));
                     }
                     if let Ok((Tok::Kw(Kw::Char | Kw::Short | Kw::Int | Kw::Long), _)) =
                         self.peek_t()
@@ -335,10 +312,7 @@ where
                 }
                 Tok::Kw(Kw::Unsigned) => {
                     if signedness.is_some() {
-                        return Err(ParserError::new(
-                            span,
-                            "cannot specify signedness twice".to_string(),
-                        ));
+                        return Err(Error::new("cannot specify signedness twice", span));
                     }
                     if let Ok((Tok::Kw(Kw::Char | Kw::Short | Kw::Int | Kw::Long), _)) =
                         self.peek_t()
@@ -355,12 +329,9 @@ where
                     TypeSpecifier::Integer(IntTy(IntSign::Unsigned, IntTyKind::Bool))
                 }
                 Tok::Kw(Kw::Complex) => {
-                    return Err(ParserError::new(
-                        span,
-                        "tf are you doing with complex numbers".to_string(),
-                    ))
+                    return Err(Error::new("tf are you doing with complex numbers", span))
                 }
-                tok => return Err(ParserError::new(span, format!("Invalid token: `{tok}`"))),
+                tok => return Err(Error::new(format!("Invalid token: `{tok}`"), span)),
             };
 
             break Ok((ty, span));
@@ -413,7 +384,7 @@ where
                     // the wrong way around because borrowing
                     if let (Tok::Punct(P::ParenClose), _) = self.peek_t_n(1)? {
                         if let &(ref tok @ Tok::Kw(Kw::Void), span) = self.peek_t()? {
-                            return Err(ParserError::unsupported(span, tok));
+                            return Err(Error::unsupported(span, tok));
                         }
                     }
                 }

@@ -65,29 +65,31 @@
 //! | %r12-r14 | callee-saved registers | Yes |
 //! | %r15     | callee-saved register; optionally used as GOT base pointer | Yes |
 
+#![allow(unused_variables, dead_code)]
+
 use analysis::{
-    ir::{self, BbIdx, Func, Location, Operand, Register, Statement, StatementKind},
+    ir::{self, BbIdx, Branch, Func, Location, Operand, Register, Statement, StatementKind},
     LoweringCx,
 };
 use iced_x86::{
     code_asm::{self as x, CodeAssembler},
-    IcedError,
+    Formatter, IcedError, NasmFormatter,
 };
-use parser::Span;
+use parser::{Error, Span};
 use rustc_hash::FxHashMap;
 
 use crate::Result;
 
 trait IcedErrExt {
     type T;
-    fn sp(self, span: Span) -> Result<Self::T, analysis::Error>;
+    fn sp(self, span: Span) -> Result<Self::T, Error>;
 }
 
 impl<T> IcedErrExt for Result<T, IcedError> {
     type T = T;
 
-    fn sp(self, span: Span) -> Result<Self::T, analysis::Error> {
-        self.map_err(|e| analysis::Error::new(e.to_string(), span))
+    fn sp(self, span: Span) -> Result<Self::T, Error> {
+        self.map_err(|e| Error::new(e.to_string(), span))
     }
 }
 
@@ -97,9 +99,13 @@ struct MachineReg(usize);
 
 #[derive(Debug, Clone, Copy)]
 enum RegValue {
+    /// The SSA register contains an address on the stack.
+    /// The offest is the offset from the start of the function.
+    StackRelative { offset: u64 },
     /// The SSA register resides on the stack as it has been spilled.
-    Stack { offset: u64 },
-    /// The SSA register resides in a machine register
+    /// This should be rather rare in practice.
+    Spilled { offset: u64 },
+    /// The SSA register resides in a machine register.
     MachineReg(MachineReg),
 }
 
@@ -143,7 +149,8 @@ impl<'cx> AsmCtxt<'cx> {
 
     fn generate_func(&mut self, func: &Func<'cx>) -> Result<()> {
         // TODO: Prologue
-        self.a.push(x::rbx);
+        self.a.push(x::rbx).sp(func.def_span)?;
+        self.a.push(x::rsp).sp(func.def_span)?;
 
         loop {
             let bb = &func.bbs[self.bb_idx.as_usize()];
@@ -159,6 +166,7 @@ impl<'cx> AsmCtxt<'cx> {
                         size,
                         align: _,
                     } => {
+                        // For alloca, we allocate some space on the stack by subtracting from RSP.
                         // TODO: Align
                         match size {
                             Operand::Const(c) => {
@@ -166,11 +174,13 @@ impl<'cx> AsmCtxt<'cx> {
                                 self.a.sub(x::rsp, offset).sp(st_sp)?;
                                 self.current_stack_offset += offset as u64;
                             }
-                            Operand::Reg(_) => todo!("dynamic alloca is not supported"),
+                            Operand::Reg(_) => {
+                                todo!("dynamic alloca is not supported. get a better computer")
+                            }
                         };
                         self.reg_map.insert(
                             reg,
-                            RegValue::Stack {
+                            RegValue::StackRelative {
                                 offset: self.current_stack_offset,
                             },
                         );
@@ -180,26 +190,44 @@ impl<'cx> AsmCtxt<'cx> {
                         value,
                         size,
                         align,
-                    } => match ptr {
-                        Operand::Const(_) => todo!("const stores not implemented"),
-                        Operand::Reg(reg) => {
-                            let value = self.reg_map[&reg];
-                            let stack_offset = match value {
-                                RegValue::Stack { offset } => offset,
-                                RegValue::MachineReg(_) => todo!("machine reg"),
-                            };
-                            //let rhs = match value {
-                            //    Operand::Const(c) => {}
-                            //    Operand::Reg(reg) => {}
-                            //};
-
-                            // mov [rbp + OFFSET], RHS
-
-                            //self.a.add_instruction(Instruction::with2(Code::Mov, op0, op1))
-
-                            self.a.mov(x::ptr(x::rax), x::rbx);
+                    } => {
+                        let Operand::Const(size) = size else {
+                            todo!("non const size");
+                        };
+                        if size.as_i32() != 8 {
+                            todo!("stores of less or more than 8 bytes: {size}");
                         }
-                    },
+                        match ptr {
+                            Operand::Const(_) => todo!("const stores not implemented"),
+                            Operand::Reg(reg) => {
+                                let ptr_value = self.reg_map[&reg];
+                                match (ptr_value, value) {
+                                    (RegValue::StackRelative { offset }, Operand::Const(c)) => {
+                                        let offset_from_cur = self.current_stack_offset - offset;
+                                        dbg!(offset_from_cur, c);
+
+                                        self.a
+                                            .mov(x::qword_ptr(x::rsp + offset_from_cur), c.as_i32())
+                                            .sp(st_sp)?;
+                                    }
+                                    (RegValue::StackRelative { offset }, Operand::Reg(value)) => {
+                                        todo!("stack relative ptr + reg value")
+                                    }
+                                    (RegValue::Spilled { .. }, _) => todo!("spilled"),
+                                    (RegValue::MachineReg(_), _) => todo!("machine reg"),
+                                };
+                                //let rhs = match value {
+                                //    Operand::Const(c) => {}
+                                //    Operand::Reg(reg) => {}
+                                //};
+
+                                // mov [rsp + OFFSET], RHS
+
+                                //self.a.add_instruction(Instruction::with2(Code::Mov, op0, op1))
+                                // self.a.mov(x::ptr(x::rax), x::rbx).sp(st_sp);
+                            }
+                        }
+                    }
                     StatementKind::Load {
                         result,
                         ptr,
@@ -228,7 +256,20 @@ impl<'cx> AsmCtxt<'cx> {
                 }
             }
 
-            todo!("next bbs");
+            match bb.term {
+                Branch::Ret(_) => {
+                    self.a
+                        .add(x::rsp, i32::try_from(self.current_stack_offset).unwrap())
+                        .sp(func.def_span)?;
+                    self.a.pop(x::rsp).sp(func.def_span)?;
+                    self.a.pop(x::rbx).sp(func.def_span)?;
+                    self.a.mov(x::rax, 0_u64).sp(func.def_span)?;
+                    self.a.ret().sp(func.def_span)?;
+                    break;
+                }
+                Branch::Switch { .. } => todo!("switch"),
+                Branch::Goto(_) => todo!("goto"),
+            }
         }
 
         Ok(())
@@ -239,7 +280,7 @@ pub fn generate_func<'cx>(lcx: &'cx LoweringCx<'cx>, func: &Func<'cx>) -> Result
     assert_eq!(func.arity, 0, "arguments??? in MY uwucc????");
 
     let fn_sp = func.def_span;
-    let mut a = CodeAssembler::new(64).sp(fn_sp)?;
+    let a = CodeAssembler::new(64).sp(fn_sp)?;
 
     let mut cx = AsmCtxt {
         lcx,
@@ -254,6 +295,15 @@ pub fn generate_func<'cx>(lcx: &'cx LoweringCx<'cx>, func: &Func<'cx>) -> Result
     cx.generate_func(func)?;
 
     let code = cx.a.assemble(0x4000).sp(fn_sp)?;
+
+    print!("{}:\n---", func.name);
+    let mut output = String::new();
+    let mut formatter = NasmFormatter::new();
+    for instr in cx.a.instructions() {
+        output.push('\n');
+        formatter.format(instr, &mut output);
+    }
+    println!("{output}\n---");
 
     Ok(code)
 }

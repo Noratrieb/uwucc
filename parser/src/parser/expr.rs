@@ -7,7 +7,7 @@ use crate::{
         ArithOpKind, Atom, BinaryOp, ComparisonKind, Expr, ExprBinary, ExprPostfix, ExprUnary,
         PostfixOp, UnaryOp,
     },
-    parser::{eat, expect, Parser, ParserError, Result},
+    parser::{eat, expect, Error, Parser, Result},
     pre::Punctuator as P,
     sym::Symbol,
     token::{Constant, Token as Tok},
@@ -40,7 +40,7 @@ where
             }
             &(Tok::Punct(punct), span) => {
                 let r_bp = prefix_binding_power(&Tok::Punct(punct)).ok_or_else(|| {
-                    ParserError::new(span, format!("expected expression, found {punct}"))
+                    Error::new(format!("expected expression, found {punct}"), span)
                 })?;
                 let Some(op) = unary_op_from_token(&Tok::Punct(punct)) else { panic!() };
                 let rhs = self.expr_bp(r_bp)?;
@@ -56,9 +56,9 @@ where
                 ));
             }
             (tok, span) => {
-                return Err(ParserError::new(
-                    *span,
+                return Err(Error::new(
                     format!("expected expression, found {tok}"),
+                    *span,
                 ));
             }
         };

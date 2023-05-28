@@ -1,12 +1,12 @@
 use super::Tok;
-use crate::{ast::ExternalDecl, parser::ParserError, Span, Spanned};
+use crate::{ast::ExternalDecl, parser::Error, Span, Spanned};
 
 fn lex_and_pre(src: &str) -> impl Iterator<Item = (Tok<'_>, Span)> + '_ {
     let pre_tokens = crate::pre::preprocess_tokens(src);
     crate::token::pre_tokens_to_tokens(pre_tokens)
 }
 
-fn pretty_print(ast: &Result<Vec<Spanned<ExternalDecl>>, ParserError>) -> String {
+fn pretty_print(ast: &Result<Vec<Spanned<ExternalDecl>>, Error>) -> String {
     let mut vec = Vec::new();
 
     match ast {

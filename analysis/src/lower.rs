@@ -3,7 +3,7 @@ mod typeck;
 
 use parser::{
     ast::{self, ExprBinary},
-    Span, Symbol,
+    Error, Span, Symbol,
 };
 use rustc_hash::FxHashMap;
 
@@ -15,7 +15,6 @@ use crate::{
         VariableInfo, VariableInfoKind,
     },
     ty::{Ty, TyKind},
-    Error,
 };
 
 type Result<T, E = Error> = std::result::Result<T, E>;

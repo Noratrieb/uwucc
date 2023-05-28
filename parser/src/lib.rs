@@ -4,8 +4,8 @@
 use std::fmt::Debug;
 
 use ast::TranslationUnit;
+use dbg_pls::DebugPls;
 
-use self::parser::ParserError;
 use crate::token::Token;
 
 pub mod ast;
@@ -63,12 +63,63 @@ impl Debug for Span {
     }
 }
 
+
+#[derive(Debug)]
+pub struct Error {
+    pub msg: String,
+    pub span: Option<Span>,
+    pub notes: Vec<Note>,
+}
+
+#[derive(Debug)]
+pub struct Note {
+    pub msg: String,
+    pub span: Option<Span>,
+}
+
+impl Error {
+    pub fn new(msg: impl Into<String>, span: Span) -> Self {
+        Self {
+            msg: msg.into(),
+            span: Some(span),
+            notes: Vec::new(),
+        }
+    }
+
+    pub fn new_without_span(msg: impl Into<String>) -> Self {
+        Self {
+            msg: msg.into(),
+            span: None,
+            notes: Vec::new(),
+        }
+    }
+
+    pub fn note_spanned(mut self, msg: impl Into<String>, span: Span) -> Self {
+        self.notes.push(Note {
+            msg: msg.into(),
+            span: Some(span),
+        });
+        self
+    }
+}
+
+
+impl DebugPls for Error {
+    fn fmt(&self, f: dbg_pls::Formatter<'_>) {
+        f.debug_struct("Error")
+            .field("span", &self.span)
+            .field("msg", &self.msg)
+            .finish();
+    }
+}
+
+
 fn lex_and_pre(src: &str) -> impl Iterator<Item = (Token<'_>, Span)> + '_ {
     let pre_tokens = pre::preprocess_tokens(src);
     token::pre_tokens_to_tokens(pre_tokens)
 }
 
-pub fn parse_file(src: &str) -> Result<TranslationUnit, ParserError> {
+pub fn parse_file(src: &str) -> Result<TranslationUnit, Error> {
     let lexer = lex_and_pre(src);
     parser::parse_declarations(lexer)
 }

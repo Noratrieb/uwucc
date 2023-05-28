@@ -14,3 +14,4 @@ analysis = { path = "./analysis" }
 codegen = { path = "./codegen" }
 parser = { path = "./parser" }
 dbg-pls = { version = "0.3.2", features = ["derive", "colors"] }
+ariadne = "0.2.0"

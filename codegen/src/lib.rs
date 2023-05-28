@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 mod x86_64;
 
 use std::process::Stdio;
@@ -9,8 +7,9 @@ use object::{
     elf,
     write::{Object, Symbol},
 };
+use parser::Error;
 
-type Result<T, E = analysis::Error> = std::result::Result<T, E>;
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub fn generate<'cx>(lcx: &'cx LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
     let mut obj = Object::new(
@@ -43,25 +42,24 @@ pub fn generate<'cx>(lcx: &'cx LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
         obj.add_symbol(sym);
     }
 
-    let object_file = obj.write().map_err(|err| {
-        analysis::Error::new_without_span(format!("failed to create object file: {err}"))
-    })?;
+    let object_file = obj
+        .write()
+        .map_err(|err| Error::new_without_span(format!("failed to create object file: {err}")))?;
 
     std::fs::write("main.o", object_file).map_err(|err| {
-        analysis::Error::new_without_span(format!("failed to write object file main.o: {err}"))
+        Error::new_without_span(format!("failed to write object file main.o: {err}"))
     })?;
 
     let output = std::process::Command::new("cc")
         .arg("main.o")
+        .arg("-g")
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .output()
-        .map_err(|err| analysis::Error::new_without_span(format!("failed to spawn `cc`: {err}")))?;
+        .map_err(|err| Error::new_without_span(format!("failed to spawn `cc`: {err}")))?;
 
     if !output.status.success() {
-        return Err(analysis::Error::new_without_span(format!(
-            "linking with `cc` failed"
-        )));
+        return Err(Error::new_without_span(format!("linking with `cc` failed")));
     } else {
         // std::fs::remove_file("main.o").map_err(|err| {
         //     analysis::Error::new_without_span(format!(

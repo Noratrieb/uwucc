@@ -1,14 +1,11 @@
 use parser::{
     ast::{IntSign, IntTy, IntTyKind},
-    Span,
+    Error, Span,
 };
 use smallvec::{smallvec, SmallVec};
 
 use super::{FnLoweringCtxt, Result};
-use crate::{
-    ty::{Ty, TyKind},
-    Error,
-};
+use crate::ty::{Ty, TyKind};
 
 pub(super) type Coercions<'cx> = SmallVec<[(Coercion, Ty<'cx>); 2]>;
 

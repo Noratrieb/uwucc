@@ -1,4 +1,5 @@
 use analysis::LoweringCx;
+use parser::Error;
 
 fn main() {
     let input_file = std::env::args().nth(1).expect("first argument");
@@ -8,25 +9,52 @@ fn main() {
     });
 
     let ast = parser::parse_file(&src);
-    dbg_pls::color!(&ast);
-    let Ok(ast) = ast else {
-        std::process::exit(1);
-    };
+    // dbg_pls::color!(&ast);
+    let ast = ast.unwrap_or_else(|err| report_fatal(&input_file, &src, err));
     let mut printer = parser::pretty::PrettyPrinter::new(std::io::stdout().lock(), false);
-    println!("// START CODE  -------------------");
+    println!("-------- AST pretty");
     printer.translation_unit(&ast).unwrap();
-    println!("// END CODE    -------------------");
 
     let arena = bumpalo::Bump::new();
     let mut lcx = LoweringCx::new(&arena);
 
-    let ir = analysis::lower_translation_unit(&mut lcx, &ast).unwrap_or_else(|err| {
-        dbg!(err);
-        std::process::exit(1);
-    });
+    println!("-------- IR");
+    let ir = analysis::lower_translation_unit(&mut lcx, &ast)
+        .unwrap_or_else(|err| report_fatal(&input_file, &src, err));
 
-    codegen::generate(&lcx, &ir).unwrap_or_else(|err| {
-        dbg!(err);
-        std::process::exit(1);
-    });
+    println!("-------- ASM");
+    codegen::generate(&lcx, &ir).unwrap_or_else(|err| report_fatal(&input_file, &src, err));
+}
+
+fn report_fatal(filename: &str, source: &str, error: Error) -> ! {
+    use ariadne::{Label, Report, ReportKind, Source};
+
+    let line = match error.span {
+        Some(span) => {
+            let mut line = 0;
+            source.char_indices().find(|(i, c)| {
+                if *c == '\n' {
+                    line += 1;
+                }
+                // exit if we have found the start
+                *i >= span.start
+            });
+            line
+        }
+        None => 0,
+    };
+
+    let mut rep = Report::build(ReportKind::Error, filename, line).with_message(&error.msg);
+
+    if let Some(span) = error.span {
+        rep = rep
+            .with_label(Label::new((filename, span.start..span.end)))
+            .with_message(&error.msg);
+    }
+
+    rep.finish()
+        .eprint((filename, Source::from(source)))
+        .unwrap();
+
+    std::process::exit(1);
 }

@@ -27,6 +27,7 @@
             llvmPackages_16.bintools
             rustup
             cargo-insta
+            gdb
           ];
 
           shellHook = ''
