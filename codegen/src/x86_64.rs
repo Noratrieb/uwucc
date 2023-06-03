@@ -148,9 +148,9 @@ impl<'cx> AsmCtxt<'cx> {
     }
 
     fn generate_func(&mut self, func: &Func<'cx>) -> Result<()> {
-        // TODO: Prologue
-        self.a.push(x::rbx).sp(func.def_span)?;
-        self.a.push(x::rsp).sp(func.def_span)?;
+        // Prologue: Save rbp and save rsp in rbp.
+        self.a.push(x::rbp).sp(func.def_span)?;
+        self.a.mov(x::rbp, x::rsp).sp(func.def_span)?;
 
         loop {
             let bb = &func.bbs[self.bb_idx.as_usize()];
@@ -204,7 +204,6 @@ impl<'cx> AsmCtxt<'cx> {
                                 match (ptr_value, value) {
                                     (RegValue::StackRelative { offset }, Operand::Const(c)) => {
                                         let offset_from_cur = self.current_stack_offset - offset;
-                                        dbg!(offset_from_cur, c);
 
                                         self.a
                                             .mov(x::qword_ptr(x::rsp + offset_from_cur), c.as_i32())
@@ -258,11 +257,9 @@ impl<'cx> AsmCtxt<'cx> {
 
             match bb.term {
                 Branch::Ret(_) => {
-                    self.a
-                        .add(x::rsp, i32::try_from(self.current_stack_offset).unwrap())
-                        .sp(func.def_span)?;
-                    self.a.pop(x::rsp).sp(func.def_span)?;
-                    self.a.pop(x::rbx).sp(func.def_span)?;
+                    // Epilogue: Restore rsp, rbp and return.
+                    self.a.mov(x::rsp, x::rbp).sp(func.def_span)?;
+                    self.a.pop(x::rbp).sp(func.def_span)?;
                     self.a.mov(x::rax, 0_u64).sp(func.def_span)?;
                     self.a.ret().sp(func.def_span)?;
                     break;
