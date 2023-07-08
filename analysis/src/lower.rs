@@ -37,7 +37,9 @@ pub fn lower_translation_unit<'cx>(
 
                 let (ref declarator, def_span) = decl.init_declarators[0];
 
-                let ast::DirectDeclarator::WithParams { ident, params } = &declarator.declarator.decl else {
+                let ast::DirectDeclarator::WithParams { ident, params } =
+                    &declarator.declarator.decl
+                else {
                     unreachable!("function def needs withparams declarator");
                 };
 
@@ -144,7 +146,10 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
             todo!("complex lvalues")
         };
         let Some(var) = self.resolve_ident(ident) else {
-            return Err(Error::new(format!("cannot find variable {ident}"), ident_span));
+            return Err(Error::new(
+                format!("cannot find variable {ident}"),
+                ident_span,
+            ));
         };
         Ok(match var.kind {
             VariableInfoKind::Local { ptr_to } => (Operand::Reg(ptr_to), var.tyl),
@@ -245,7 +250,10 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
             ast::Expr::Atom(ast::Atom::Float(_)) => todo!("no floats"),
             ast::Expr::Atom(ast::Atom::Ident((ident, ident_span))) => {
                 let Some(var) = self.resolve_ident(*ident) else {
-                    return Err(Error::new(format!("cannot find variable {ident}"), *ident_span));
+                    return Err(Error::new(
+                        format!("cannot find variable {ident}"),
+                        *ident_span,
+                    ));
                 };
                 let tyl = var.tyl;
                 match var.kind {
@@ -445,13 +453,7 @@ fn lower_func<'cx>(
 ) -> Result<Func<'cx>, Error> {
     let mut cx = FnLoweringCtxt {
         scopes: vec![Default::default()],
-        build: FuncBuilder::new(
-            name,
-            def_span,
-            ret_ty,
-            lcx,
-            params.len(),
-        ),
+        build: FuncBuilder::new(name, def_span, ret_ty, lcx, params.len()),
         lcx,
     };
 

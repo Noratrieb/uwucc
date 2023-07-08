@@ -1,18 +1,44 @@
-use std::fmt::{Display, Formatter, Result, Write};
+use std::{
+    cell::Cell,
+    fmt::{self, Display, Formatter, Result, Write},
+};
 
-use super::{BbIdx, BinKind, Branch, ConstValue, Func, Ir, Operand, StatementKind, UnaryKind};
+use super::{
+    BbIdx, BinKind, Branch, ConstValue, Func, Ir, Location, Operand, StatementKind, UnaryKind,
+};
 use crate::ir::Register;
 
-pub fn ir_to_string(ir: &Ir<'_>) -> String {
+pub fn ir_to_string<'a>(ir: &'a Ir<'a>, custom: &impl Customizer<'a>) -> String {
     let mut buf = String::new();
-    PrettyPrinter { out: &mut buf }.ir(ir).unwrap();
+    PrettyPrinter { out: &mut buf }.ir(ir, custom).unwrap();
     buf
 }
 
-pub fn func_to_string(func: &Func<'_>) -> String {
+pub fn func_to_string<'a>(func: &'a Func<'a>, custom: &impl Customizer<'a>) -> String {
     let mut buf = String::new();
-    PrettyPrinter { out: &mut buf }.func(func).unwrap();
+    PrettyPrinter { out: &mut buf }.func(func, custom).unwrap();
     buf
+}
+
+pub trait Customizer<'a> {
+    fn start_func(&self, func: &'a Func<'a>);
+    fn fmt_reg(&self, reg: Register, f: &mut fmt::Formatter<'_>, loc: Location) -> fmt::Result;
+}
+
+#[derive(Default)]
+pub struct DefaultCustomizer<'a>(Cell<Option<&'a Func<'a>>>);
+
+impl<'a> Customizer<'a> for DefaultCustomizer<'a> {
+    fn start_func(&self, func: &'a Func<'a>) {
+        self.0.set(Some(func));
+    }
+
+    fn fmt_reg(&self, reg: Register, f: &mut fmt::Formatter<'_>, loc: Location) -> fmt::Result {
+        match self.0.get().unwrap().regs[reg.0 as usize].name {
+            None => write!(f, "%{}", reg.0),
+            Some(name) => write!(f, "%{name}"),
+        }
+    }
 }
 
 pub struct PrettyPrinter<W> {
@@ -20,20 +46,18 @@ pub struct PrettyPrinter<W> {
 }
 
 impl<W: Write> PrettyPrinter<W> {
-    pub fn ir(&mut self, ir: &Ir<'_>) -> Result {
+    pub fn ir<'a>(&mut self, ir: &'a Ir<'a>, custom: &impl Customizer<'a>) -> Result {
         for func in ir.funcs.values() {
-            self.func(func)?;
+            self.func(func, custom)?;
         }
         Ok(())
     }
 
-    pub fn func(&mut self, func: &Func<'_>) -> Result {
-        let print_reg = |reg: Register| {
-            display_fn(move |f| match func.regs[reg.0 as usize].name {
-                None => write!(f, "%{}", reg.0),
-                Some(name) => write!(f, "%{name}"),
-            })
-        };
+    pub fn func<'a>(&mut self, func: &'a Func<'a>, custom: &impl Customizer<'a>) -> Result {
+        custom.start_func(func);
+
+        let print_reg =
+            |reg: Register, loc: Location| display_fn(move |f| custom.fmt_reg(reg, f, loc));
 
         write!(self.out, "def {}(", func.name)?;
         for param in 0..func.arity {
@@ -42,7 +66,7 @@ impl<W: Write> PrettyPrinter<W> {
                 self.out,
                 "{} {}",
                 reg.tyl.ty,
-                print_reg(Register(param as _))
+                print_reg(Register(param as _), Location::start())
             )?;
             if (param + 1) != func.arity {
                 write!(self.out, ", ")?;
@@ -50,20 +74,25 @@ impl<W: Write> PrettyPrinter<W> {
         }
         writeln!(self.out, ") {{",)?;
 
-        let print_op = |op: Operand| {
+        let print_op = |op: Operand, loc: Location| {
             display_fn(move |f| match op {
                 Operand::Const(c) => Display::fmt(&c, f),
-                Operand::Reg(reg) => Display::fmt(&print_reg(reg), f),
+                Operand::Reg(reg) => Display::fmt(&print_reg(reg, loc), f),
             })
         };
 
         for (i, bb) in func.bbs.iter().enumerate() {
+            let bb_idx = BbIdx::from_usize(i);
             if i > 0 {
                 writeln!(self.out)?;
             }
-            writeln!(self.out, "  {}:", BbIdx::from_usize(i))?;
+            writeln!(self.out, "  {}:", bb_idx)?;
 
-            for stmt in &bb.statements {
+            for (stmt_idx, stmt) in bb.statements.iter().enumerate() {
+                let loc = Location::stmt(bb_idx, stmt_idx);
+                let print_reg = |reg| print_reg(reg, loc);
+                let print_op = |op| print_op(op, loc);
+
                 match stmt.kind {
                     StatementKind::Alloca {
                         result: reg,
@@ -177,14 +206,15 @@ impl<W: Write> PrettyPrinter<W> {
                 }?;
             }
 
+            let loc = Location::terminator(bb_idx);
             match bb.term {
                 Branch::Goto(bbn) => writeln!(self.out, "    goto {}", bbn)?,
                 Branch::Switch { cond, yes, no } => writeln!(
                     self.out,
                     "    switch {}, then {yes}, else {no}",
-                    print_op(cond)
+                    print_op(cond, loc)
                 )?,
-                Branch::Ret(op) => writeln!(self.out, "    ret {}", print_op(op))?,
+                Branch::Ret(op) => writeln!(self.out, "    ret {}", print_op(op, loc))?,
             }
         }
 

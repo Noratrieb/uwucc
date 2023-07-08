@@ -5,46 +5,6 @@
 //! Then, all IR basic blocks and statements are lowered in a straightforward way.
 //! No optimizations are done. There is some basic register allocation.
 //!
-//! # Register allocation
-//!
-//! Register allocation is not very smart, but also not too stupid. It tries to put SSA
-//! registers into machine registers as much as possible.
-//!
-//! ```text
-//! bb0:
-//!   %0 = 0
-//!   %1 = 1
-//!   %2 = add %0 %1
-//!   switch %2, then bb1, else bb2
-//!
-//! bb1:
-//!   %3 = add %1, 1
-//!   
-//! bb2:
-//!   %4 = add %2, 2
-//! ```
-//!
-//! For all SSA registers, we establish their "point of last use". This is the bb,stmt where their last usage occurs.
-//!
-//! First, we establish a list of possible registers to allocate.
-//! Since we immediately alloca all parameters, all the param registers are free real estate.
-//! Also, `rbx` is always saved on the stack at the start and end.
-//!
-//! ```text
-//! rax, rbx, rdi, rsi, rcx, rdx, r8, r9
-//! ```
-//!
-//! This forms our priority list of registers.
-//!
-//! Every time a statement has a return value, we try to assign that SSA register into a new machine register.
-//! For this, we iterate through the register list above and find the first register that's free. If we see a register
-//! that is not used anymore at the current location, we throw it out and use that new slot.
-//!
-//! When codegening an SSA register, we look into a lookup table from SSA register to machine register/stack spill and use that.
-//!
-//! When the list above is full, we spill the register to the stack. This should be rare. If the register doesn't fit into a machine
-//! register, it's also spilled.
-//!
 //! ## Registers
 //! <https://gitlab.com/x86-psABIs/x86-64-ABI>
 //!
@@ -78,7 +38,10 @@ use iced_x86::{
 use parser::{Error, Span};
 use rustc_hash::FxHashMap;
 
-use crate::Result;
+use crate::{
+    registers::{MachineReg, RegValue},
+    Result,
+};
 
 trait IcedErrExt {
     type T;
@@ -91,22 +54,6 @@ impl<T> IcedErrExt for Result<T, IcedError> {
     fn sp(self, span: Span) -> Result<Self::T, Error> {
         self.map_err(|e| Error::new(e.to_string(), span))
     }
-}
-
-/// A machine register from our register list described in the module documentation.
-#[derive(Debug, Clone, Copy)]
-struct MachineReg(usize);
-
-#[derive(Debug, Clone, Copy)]
-enum RegValue {
-    /// The SSA register contains an address on the stack.
-    /// The offest is the offset from the start of the function.
-    StackRelative { offset: u64 },
-    /// The SSA register resides on the stack as it has been spilled.
-    /// This should be rather rare in practice.
-    Spilled { offset: u64 },
-    /// The SSA register resides in a machine register.
-    MachineReg(MachineReg),
 }
 
 struct AsmCtxt<'cx> {
@@ -275,6 +222,9 @@ impl<'cx> AsmCtxt<'cx> {
 
 pub fn generate_func<'cx>(lcx: &'cx LoweringCx<'cx>, func: &Func<'cx>) -> Result<Vec<u8>> {
     assert_eq!(func.arity, 0, "arguments??? in MY uwucc????");
+
+    let layout = crate::registers::compute_layout(func);
+    crate::registers::debug_layout(func, &layout);
 
     let fn_sp = func.def_span;
     let a = CodeAssembler::new(64).sp(fn_sp)?;

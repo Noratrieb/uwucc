@@ -33,7 +33,7 @@
 
 mod custom;
 pub mod info;
-mod pretty;
+pub mod pretty;
 mod validate;
 mod visit;
 
@@ -296,6 +296,24 @@ impl Branch {
             Branch::Goto(bb) => Either::Left(Some(*bb).into_iter()),
             Branch::Switch { cond: _, yes, no } => Either::Right([*yes, *no].into_iter()),
             Branch::Ret(_) => Either::Left(None.into_iter()),
+        }
+    }
+}
+
+impl Location {
+    pub fn start() -> Self {
+        Self {
+            bb: BbIdx(0),
+            stmt: Some(0),
+        }
+    }
+    pub fn terminator(bb: BbIdx) -> Self {
+        Self { bb, stmt: None }
+    }
+    pub fn stmt(bb: BbIdx, stmt: usize) -> Self {
+        Self {
+            bb,
+            stmt: Some(stmt),
         }
     }
 }

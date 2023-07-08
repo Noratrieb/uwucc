@@ -166,7 +166,10 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
     }
 
     pub fn finish(self) -> Func<'cx> {
-        println!("{}", ir::func_to_string(&self.ir));
+        println!(
+            "{}",
+            ir::func_to_string(&self.ir, &ir::pretty::DefaultCustomizer::default())
+        );
 
         self.ir
     }

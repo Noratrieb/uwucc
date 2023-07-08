@@ -42,7 +42,9 @@ where
                 let r_bp = prefix_binding_power(&Tok::Punct(punct)).ok_or_else(|| {
                     Error::new(format!("expected expression, found {punct}"), span)
                 })?;
-                let Some(op) = unary_op_from_token(&Tok::Punct(punct)) else { panic!() };
+                let Some(op) = unary_op_from_token(&Tok::Punct(punct)) else {
+                    panic!()
+                };
                 let rhs = self.expr_bp(r_bp)?;
 
                 self.next_t()?;

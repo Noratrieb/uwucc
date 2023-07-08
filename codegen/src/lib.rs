@@ -1,3 +1,4 @@
+mod registers;
 mod x86_64;
 
 use std::process::Stdio;
@@ -16,6 +17,13 @@ pub fn generate<'cx>(lcx: &'cx LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
         object::BinaryFormat::Elf,
         object::Architecture::X86_64,
         object::Endianness::Little,
+    );
+
+    // GNU linkers have this awesome thing where they'll mark your stack as executable unless you tell them not to.
+    obj.add_section(
+        Vec::new(),
+        b".note.GNU-stack".to_vec(),
+        object::SectionKind::Note,
     );
 
     let text = obj.add_section(Vec::new(), b".text".to_vec(), object::SectionKind::Text);
