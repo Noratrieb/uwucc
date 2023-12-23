@@ -131,8 +131,8 @@ pub struct Statement {
 pub enum StatementKind {
     Alloca {
         result: Register,
-        size: Operand,
-        align: Operand,
+        size: u64,
+        align: u64,
     },
     Store {
         ptr: Operand,
@@ -234,6 +234,8 @@ impl Func<'_> {
 }
 
 impl BbIdx {
+    pub const ZERO: Self = Self(0);
+
     pub fn from_usize(n: usize) -> Self {
         Self(n.try_into().unwrap())
     }

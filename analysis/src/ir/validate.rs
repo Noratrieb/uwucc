@@ -1,6 +1,6 @@
 use rustc_hash::FxHashSet;
 
-use super::{visit::Visitor, Branch, Func, Register};
+use super::{visit::Visitor, Branch, Func, Register, StatementKind};
 use crate::ir::BbIdx;
 
 pub fn validate(func: &Func<'_>) {
@@ -11,6 +11,16 @@ pub fn validate(func: &Func<'_>) {
                 BbIdx::from_usize(i),
                 func.name
             )
+        }
+    }
+
+    for (i, bb) in func.bbs.iter().enumerate().skip(1) {
+        if bb
+            .statements
+            .iter()
+            .any(|stmt| matches!(stmt.kind, StatementKind::Alloca { .. }))
+        {
+            panic!("alloca is only allowed in first block, found in block {i}")
         }
     }
 

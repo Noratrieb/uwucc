@@ -3,8 +3,8 @@ use parser::{Span, Symbol};
 use super::LoweringCx;
 use crate::{
     ir::{
-        self, BasicBlock, BbIdx, BinKind, Branch, ConstValue, Func, Layout, Operand, Register,
-        RegisterData, Statement, StatementKind, TyLayout, UnaryKind,
+        self, BasicBlock, BbIdx, BinKind, Branch, Func, Layout, Operand, Register, RegisterData,
+        Statement, StatementKind, TyLayout, UnaryKind,
     },
     ty::{Ty, TyKind},
 };
@@ -47,6 +47,15 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
         reg
     }
 
+    pub fn reserve_local(&mut self, layout: &Layout, name: Symbol, span: Span) -> Register {
+        // Every local is a singleton.
+        let prev = self.current_bb;
+        self.current_bb = BbIdx(0);
+        let reg = self.alloca(layout, Some(name), span);
+        self.current_bb = prev;
+        reg
+    }
+
     pub fn alloca(&mut self, layout: &Layout, name: Option<Symbol>, span: Span) -> Register {
         let void_ptr = self
             .lcx
@@ -56,8 +65,8 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
             span,
             kind: StatementKind::Alloca {
                 result: reg,
-                size: Operand::Const(ConstValue::u64(layout.size)),
-                align: Operand::Const(ConstValue::u64(layout.align)),
+                size: layout.size,
+                align: layout.align,
             },
         };
         self.cur_bb_mut().statements.push(stmt);

@@ -116,7 +116,7 @@ impl<'a, 'cx> FnLoweringCtxt<'a, 'cx> {
         for (var, def_span) in &decl.init_declarators {
             let tyl = self.lcx.layout_of(ty);
             let (name, name_span) = var.declarator.decl.name();
-            let ptr_to = self.build.alloca(tyl.layout, Some(name), span);
+            let ptr_to = self.build.reserve_local(tyl.layout, name, span);
 
             let variable_info = VariableInfo {
                 def_span: *def_span,
@@ -478,7 +478,7 @@ fn lower_func<'cx>(
         let span = param.declarator.1;
 
         let alloca_name = Symbol::intern(&format!("{}.local", name));
-        let ptr_to = cx.build.alloca(tyl.layout, Some(alloca_name), span);
+        let ptr_to = cx.build.reserve_local(tyl.layout, alloca_name, span);
 
         let variable_info = VariableInfo {
             def_span: span,

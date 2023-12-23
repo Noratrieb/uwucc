@@ -32,12 +32,10 @@ pub trait Visitor {
         match stmt.kind {
             StatementKind::Alloca {
                 result,
-                size,
-                align,
+                size: _,
+                align: _,
             } => {
                 self.visit_reg(result);
-                self.visit_operand(size);
-                self.visit_operand(align);
             }
             StatementKind::Store {
                 ptr,

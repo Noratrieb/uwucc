@@ -53,7 +53,7 @@ pub struct MachineReg(pub usize);
 pub enum RegValue {
     /// The SSA register contains an address on the stack.
     /// The offset is the offset from the start of the function.
-    StackRelative { offset: u64 },
+    StackRelativePtr { offset: u64 },
     /// The SSA register resides on the stack as it has been spilled.
     /// This should be rather rare in practice.
     Spilled { offset: u64 },
@@ -65,15 +65,13 @@ pub enum RegValue {
 pub struct FunctionLayout {
     /// Where a register comes from at a particular usage of a register.
     register_uses: FxHashMap<(Location, Register), RegValue>,
-    total_stack_space: u64,
 }
 
-pub fn compute_layout(f: &Func) -> FunctionLayout {
+pub fn compute_layout(_f: &Func) -> FunctionLayout {
     let register_uses = FxHashMap::default();
 
     FunctionLayout {
         register_uses,
-        total_stack_space: 0,
     }
 }
 
@@ -102,7 +100,7 @@ impl<'a> ir::pretty::Customizer<'a> for LayoutPrinter<'a> {
         match layout {
             Some(RegValue::MachineReg(mach)) => write!(f, "reg-{}", mach.0)?,
             Some(RegValue::Spilled { offset }) => write!(f, "spill-{offset}")?,
-            Some(RegValue::StackRelative { offset }) => {
+            Some(RegValue::StackRelativePtr { offset }) => {
                 write!(f, "i-forgot-what-this-meant-{offset}")?
             }
             None => write!(f, "<unknown>")?,

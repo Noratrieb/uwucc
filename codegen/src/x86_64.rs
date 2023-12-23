@@ -40,7 +40,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     registers::{MachineReg, RegValue},
-    Result,
+    stack, Result,
 };
 
 trait IcedErrExt {
@@ -61,8 +61,9 @@ struct AsmCtxt<'cx> {
     a: CodeAssembler,
     reg_map: FxHashMap<Register, RegValue>,
     reg_occupancy: Vec<Option<Register>>,
-    current_stack_offset: u64,
     bb_idx: BbIdx,
+
+    stack_layout: stack::StackLayout,
 
     // caches
     last_register_uses: Vec<Option<Location>>,
@@ -98,6 +99,9 @@ impl<'cx> AsmCtxt<'cx> {
         // Prologue: Save rbp and save rsp in rbp.
         self.a.push(x::rbp).sp(func.def_span)?;
         self.a.mov(x::rbp, x::rsp).sp(func.def_span)?;
+        self.a
+            .sub(x::rsp, self.stack_layout.total_size as i32)
+            .sp(func.def_span)?;
 
         loop {
             let bb = &func.bbs[self.bb_idx.as_usize()];
@@ -108,27 +112,15 @@ impl<'cx> AsmCtxt<'cx> {
                 } = *stmt;
 
                 match *kind {
-                    StatementKind::Alloca {
-                        result: reg,
-                        size,
-                        align: _,
-                    } => {
-                        // For alloca, we allocate some space on the stack by subtracting from RSP.
-                        // TODO: Align
-                        match size {
-                            Operand::Const(c) => {
-                                let offset = c.as_i32();
-                                self.a.sub(x::rsp, offset).sp(st_sp)?;
-                                self.current_stack_offset += offset as u64;
-                            }
-                            Operand::Reg(_) => {
-                                todo!("dynamic alloca is not supported. get a better computer")
-                            }
-                        };
+                    StatementKind::Alloca { result, .. } => {
                         self.reg_map.insert(
-                            reg,
-                            RegValue::StackRelative {
-                                offset: self.current_stack_offset,
+                            result,
+                            RegValue::StackRelativePtr {
+                                offset: *self
+                                    .stack_layout
+                                    .allocas
+                                    .get(&result)
+                                    .expect("no stack layout slot present for alloc register"),
                             },
                         );
                     }
@@ -149,14 +141,15 @@ impl<'cx> AsmCtxt<'cx> {
                             Operand::Reg(reg) => {
                                 let ptr_value = self.reg_map[&reg];
                                 match (ptr_value, value) {
-                                    (RegValue::StackRelative { offset }, Operand::Const(c)) => {
-                                        let offset_from_cur = self.current_stack_offset - offset;
-
+                                    (RegValue::StackRelativePtr { offset }, Operand::Const(c)) => {
                                         self.a
-                                            .mov(x::qword_ptr(x::rsp + offset_from_cur), c.as_i32())
+                                            .mov(x::qword_ptr(x::rsp + offset), c.as_i32())
                                             .sp(st_sp)?;
                                     }
-                                    (RegValue::StackRelative { offset }, Operand::Reg(value)) => {
+                                    (
+                                        RegValue::StackRelativePtr { offset },
+                                        Operand::Reg(value),
+                                    ) => {
                                         todo!("stack relative ptr + reg value")
                                     }
                                     (RegValue::Spilled { .. }, _) => todo!("spilled"),
@@ -229,13 +222,16 @@ pub fn generate_func<'cx>(lcx: &'cx LoweringCx<'cx>, func: &Func<'cx>) -> Result
     let fn_sp = func.def_span;
     let a = CodeAssembler::new(64).sp(fn_sp)?;
 
+    let stack_layout = stack::allocate_stack_space(8, func);
+    dbg!(&stack_layout);
+
     let mut cx = AsmCtxt {
         lcx,
         a,
         reg_map: FxHashMap::default(),
         reg_occupancy: vec![None; 8],
-        current_stack_offset: 0,
         bb_idx: BbIdx(0),
+        stack_layout,
         last_register_uses: ir::info::last_register_uses(func),
     };
 

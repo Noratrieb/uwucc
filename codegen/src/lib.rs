@@ -1,4 +1,5 @@
 mod registers;
+mod stack;
 mod x86_64;
 
 use std::process::Stdio;

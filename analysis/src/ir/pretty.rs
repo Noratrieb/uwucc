@@ -33,7 +33,7 @@ impl<'a> Customizer<'a> for DefaultCustomizer<'a> {
         self.0.set(Some(func));
     }
 
-    fn fmt_reg(&self, reg: Register, f: &mut fmt::Formatter<'_>, loc: Location) -> fmt::Result {
+    fn fmt_reg(&self, reg: Register, f: &mut fmt::Formatter<'_>, _loc: Location) -> fmt::Result {
         match self.0.get().unwrap().regs[reg.0 as usize].name {
             None => write!(f, "%{}", reg.0),
             Some(name) => write!(f, "%{name}"),
@@ -101,10 +101,8 @@ impl<W: Write> PrettyPrinter<W> {
                     } => {
                         writeln!(
                             self.out,
-                            "    {} = alloca, size={}, align={}",
+                            "    {} = alloca, size={size}, align={align}",
                             print_reg(reg),
-                            print_op(size),
-                            print_op(align)
                         )
                     }
                     StatementKind::Store {
