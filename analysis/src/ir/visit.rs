@@ -40,24 +40,20 @@ pub trait Visitor {
             StatementKind::Store {
                 ptr,
                 value,
-                size,
-                align,
+                size: _,
+                align: _,
             } => {
                 self.visit_operand(ptr);
                 self.visit_operand(value);
-                self.visit_operand(size);
-                self.visit_operand(align);
             }
             StatementKind::Load {
                 result,
                 ptr,
-                size,
-                align,
+                size: _,
+                align: _,
             } => {
                 self.visit_reg(result);
                 self.visit_operand(ptr);
-                self.visit_operand(size);
-                self.visit_operand(align);
             }
             StatementKind::BinOp {
                 kind: _,

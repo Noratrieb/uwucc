@@ -138,15 +138,15 @@ pub enum StatementKind {
         ptr: Operand,
         value: Operand,
         /// Amount of bytes to store.
-        size: Operand,
-        align: Operand,
+        size: u64,
+        align: u64,
     },
     Load {
         result: Register,
         ptr: Operand,
         /// Amount of bytes to load.
-        size: Operand,
-        align: Operand,
+        size: u64,
+        align: u64,
     },
     BinOp {
         result: Register,

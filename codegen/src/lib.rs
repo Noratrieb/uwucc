@@ -11,7 +11,7 @@ use object::{
 };
 use parser::Error;
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+type Result<T = (), E = Error> = std::result::Result<T, E>;
 
 pub fn generate<'cx>(lcx: &'cx LoweringCx<'cx>, ir: &Ir<'cx>) -> Result<()> {
     let mut obj = Object::new(

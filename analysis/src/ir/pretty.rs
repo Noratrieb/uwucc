@@ -112,11 +112,9 @@ impl<W: Write> PrettyPrinter<W> {
                         align,
                     } => writeln!(
                         self.out,
-                        "    store {}, {}, size={}, align={}",
+                        "    store {}, {}, size={size}, align={align}",
                         print_op(ptr_reg),
-                        print_op(value),
-                        print_op(size),
-                        print_op(align)
+                        print_op(value),                        
                     ),
                     StatementKind::Load {
                         result,
@@ -125,11 +123,9 @@ impl<W: Write> PrettyPrinter<W> {
                         align,
                     } => writeln!(
                         self.out,
-                        "    {} = load {}, size={}, align={}",
+                        "    {} = load {}, size={size}, align={align}",
                         print_reg(result),
                         print_op(ptr_reg),
-                        print_op(size),
-                        print_op(align)
                     ),
                     StatementKind::BinOp {
                         kind,

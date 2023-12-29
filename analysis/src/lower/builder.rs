@@ -118,8 +118,8 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
         let stmt = StatementKind::Load {
             result: reg,
             ptr,
-            size: Operand::const_u64(tyl.layout.size),
-            align: Operand::const_u64(tyl.layout.align),
+            size: tyl.layout.size,
+            align: tyl.layout.align,
         };
         self.cur_bb_mut()
             .statements
@@ -131,8 +131,8 @@ impl<'a, 'cx> FuncBuilder<'a, 'cx> {
         let stmt = StatementKind::Store {
             ptr,
             value: rhs,
-            size: Operand::const_u64(layout.size),
-            align: Operand::const_u64(layout.align),
+            size: layout.size,
+            align: layout.align,
         };
         self.cur_bb_mut()
             .statements
